@@ -1,8 +1,28 @@
 # Setup Instructions
 
-## One-Time Webhook Setup
+## Development vs Production
 
-After deploying to Vercel, run this command **once** to register the webhook:
+### Local Development (Polling Mode)
+
+For local testing with polling, first **delete the webhook**:
+
+```bash
+curl -X POST "https://api.telegram.org/bot6749954594:AAErEBGIl-K2InpWPKfvhNwxIQaD0DHsKh0/deleteWebhook"
+```
+
+**Expected response:**
+```json
+{"ok":true,"result":true,"description":"Webhook was deleted"}
+```
+
+Then run the local bot:
+```bash
+pnpm dev:local
+```
+
+### Production (Webhook Mode)
+
+After deploying to Vercel, set the webhook:
 
 ```bash
 curl -X POST "https://api.telegram.org/bot6749954594:AAErEBGIl-K2InpWPKfvhNwxIQaD0DHsKh0/setWebhook?url=https://your-dutch-bot.vercel.app/api/webhook"
@@ -15,14 +35,25 @@ curl -X POST "https://api.telegram.org/bot6749954594:AAErEBGIl-K2InpWPKfvhNwxIQa
 
 ## Verify Webhook Status
 
-To check if the webhook is set correctly:
+To check current webhook configuration:
 
 ```bash
 curl "https://api.telegram.org/bot6749954594:AAErEBGIl-K2InpWPKfvhNwxIQaD0DHsKh0/getWebhookInfo"
 ```
 
+## Workflow Summary
+
+**Switching to local development:**
+1. Delete webhook
+2. Run `pnpm dev:local`
+
+**Switching to production:**
+1. Stop local bot (Ctrl+C)
+2. Deploy to Vercel
+3. Set webhook (only needed once or if URL changes)
+
 ## Notes
 
-- This only needs to be done **once** per bot
 - The webhook persists even after redeployments
-- Only re-run if you change the domain or webhook path
+- You must delete the webhook before local polling will work
+- Only one mode can be active at a time (webhook OR polling)

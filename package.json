@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
+    "dev:local": "tsx dev-bot.ts",
     "build": "tsc --noEmit",
     "type-check": "tsc --noEmit",
     "deploy": "vercel --prod"
@@ -26,6 +27,8 @@
   "devDependencies": {
     "@types/node": "^25.0.3",
     "@vercel/node": "^5.5.16",
+    "dotenv": "^17.2.3",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vercel": "^50.1.3"
   }
