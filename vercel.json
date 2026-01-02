@@ -1,7 +1,5 @@
 {
-  "buildCommand": "pnpm build",
   "installCommand": "pnpm install",
-  "framework": null,
   "crons": [
     {
       "path": "/api/daily-push",
