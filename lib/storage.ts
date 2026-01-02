@@ -1,4 +1,5 @@
 import { kv } from '@vercel/kv';
+import { NewsArticle } from './gnews.js';
 
 // User Profile Types
 export interface UserProfile {
@@ -43,7 +44,9 @@ export interface VocabularyWord {
 
 export interface DailyState {
   todayDate: string;
-  currentTask: 1 | 2 | 3 | 'done';
+  currentTask: 1 | 2 | 3 | 'done' | 'selecting_topic';
+  selectedTopicIndex: number | null;
+  availableTopics?: NewsArticle[];
   tasks: {
     1?: ReadingTask;
     2?: ListeningTask;
@@ -53,9 +56,17 @@ export interface DailyState {
   completedAt: string | null;
 }
 
+// Daily Topics Cache Types
+export interface DailyTopicsCache {
+  date: string;
+  topics: NewsArticle[];
+  fetchedAt: string;
+}
+
 // Storage Keys
 const getUserProfileKey = (telegramId: number) => `user:${telegramId}:profile`;
 const getUserStateKey = (telegramId: number) => `user:${telegramId}:state`;
+const getDailyTopicsKey = (date: string) => `topics:${date}`;
 
 // User Profile Operations
 export async function getUserProfile(telegramId: number): Promise<UserProfile | null> {
@@ -99,7 +110,8 @@ export async function createDailyState(telegramId: number): Promise<DailyState> 
   const today = new Date().toISOString().split('T')[0];
   const state: DailyState = {
     todayDate: today,
-    currentTask: 1,
+    currentTask: 'selecting_topic',
+    selectedTopicIndex: null,
     tasks: {},
     collectedWords: [],
     completedAt: null,
@@ -108,8 +120,10 @@ export async function createDailyState(telegramId: number): Promise<DailyState> 
   return state;
 }
 
-export async function resetDailyState(telegramId: number): Promise<DailyState> {
-  return await createDailyState(telegramId);
+export async function resetDailyState(telegramId: number): Promise<void> {
+  // Delete the state entirely - user needs to start a new lesson with /lesson
+  const key = getUserStateKey(telegramId);
+  await kv.del(key);
 }
 
 export async function updateTaskProgress(
@@ -142,4 +156,31 @@ export async function getAllActiveUsers(): Promise<UserProfile[]> {
   }
 
   return profiles;
+}
+
+// Daily Topics Cache Operations
+export async function getDailyTopics(): Promise<NewsArticle[] | null> {
+  const today = new Date().toISOString().split('T')[0];
+  const key = getDailyTopicsKey(today);
+  const cache = await kv.get<DailyTopicsCache>(key);
+
+  if (!cache) {
+    return null;
+  }
+
+  return cache.topics;
+}
+
+export async function setDailyTopics(topics: NewsArticle[]): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+  const key = getDailyTopicsKey(today);
+
+  const cache: DailyTopicsCache = {
+    date: today,
+    topics,
+    fetchedAt: new Date().toISOString(),
+  };
+
+  // Cache for 24 hours (86400 seconds)
+  await kv.set(key, cache, { ex: 86400 });
 }

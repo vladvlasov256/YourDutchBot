@@ -1,5 +1,12 @@
 const TELEGRAM_API = 'https://api.telegram.org';
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+function getBotToken(): string {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    throw new Error('TELEGRAM_BOT_TOKEN is not set');
+  }
+  return token;
+}
 
 interface TelegramResponse<T> {
   ok: boolean;
@@ -14,7 +21,7 @@ interface MessageResult {
 
 // Send text message
 export async function sendMessage(chatId: number, text: string, parseMode: 'Markdown' | 'HTML' = 'Markdown'): Promise<MessageResult | null> {
-  const url = `${TELEGRAM_API}/bot${BOT_TOKEN}/sendMessage`;
+  const url = `${TELEGRAM_API}/bot${getBotToken()}/sendMessage`;
 
   try {
     const response = await fetch(url, {
@@ -45,7 +52,7 @@ export async function sendMessage(chatId: number, text: string, parseMode: 'Mark
 
 // Send voice message
 export async function sendVoice(chatId: number, audioBuffer: Buffer): Promise<MessageResult | null> {
-  const url = `${TELEGRAM_API}/bot${BOT_TOKEN}/sendVoice`;
+  const url = `${TELEGRAM_API}/bot${getBotToken()}/sendVoice`;
 
   try {
     const formData = new FormData();
@@ -78,7 +85,7 @@ export async function sendVoice(chatId: number, audioBuffer: Buffer): Promise<Me
 export async function downloadFile(fileId: string): Promise<Buffer | null> {
   try {
     // Get file path
-    const fileUrl = `${TELEGRAM_API}/bot${BOT_TOKEN}/getFile?file_id=${fileId}`;
+    const fileUrl = `${TELEGRAM_API}/bot${getBotToken()}/getFile?file_id=${fileId}`;
     const fileResponse = await fetch(fileUrl);
     const fileData = await fileResponse.json() as TelegramResponse<{ file_path: string }>;
 
@@ -88,7 +95,7 @@ export async function downloadFile(fileId: string): Promise<Buffer | null> {
     }
 
     // Download file
-    const downloadUrl = `${TELEGRAM_API}/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+    const downloadUrl = `${TELEGRAM_API}/file/bot${getBotToken()}/${fileData.result.file_path}`;
     const downloadResponse = await fetch(downloadUrl);
 
     if (!downloadResponse.ok) {

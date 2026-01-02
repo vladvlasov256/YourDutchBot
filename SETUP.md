@@ -1,5 +1,23 @@
 # Setup Instructions
 
+## Initial Setup
+
+### Set Bot Commands
+
+To enable command autocomplete in Telegram (when user types "/"), run:
+
+```bash
+pnpm setup:commands
+```
+
+This sets up the command menu with:
+- `/start` - Register and get started
+- `/lesson` - Start a new lesson with topic selection
+- `/status` - Check today's progress
+- `/reset` - Reset current lesson and start over
+
+You only need to run this once (or when you add new commands).
+
 ## Development vs Production
 
 ### Local Development (Polling Mode)

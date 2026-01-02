@@ -1,6 +1,7 @@
-import { Bot, Context } from 'grammy';
-import { getUserProfile, createUserProfile, getDailyState, resetDailyState } from './storage.js';
+import { Bot, Context, InlineKeyboard } from 'grammy';
+import { getUserProfile, createUserProfile, getDailyState, resetDailyState, createDailyState, setDailyState, getDailyTopics, setDailyTopics } from './storage.js';
 import { TOPICS } from '../config/topics.js';
+import { fetchNews, NewsArticle } from './gnews.js';
 
 export function createBot(token: string): Bot {
   const bot = new Bot(token);
@@ -48,6 +49,117 @@ export function createBot(token: string): Bot {
     );
   });
 
+  // /lesson command - Start a new lesson
+  bot.command('lesson', async (ctx) => {
+    const telegramId = ctx.from?.id;
+
+    if (!telegramId) {
+      await ctx.reply('Error: Could not get your user ID.');
+      return;
+    }
+
+    const profile = await getUserProfile(telegramId);
+
+    if (!profile) {
+      await ctx.reply('You are not registered yet. Use /start to begin!');
+      return;
+    }
+
+    // Check if lesson already in progress
+    const state = await getDailyState(telegramId);
+    const today = new Date().toISOString().split('T')[0];
+
+    if (state && state.todayDate === today && state.currentTask !== 'done') {
+      // Lesson in progress
+      if (state.currentTask === 'selecting_topic') {
+        // Re-show the topic list
+        if (state.availableTopics && state.availableTopics.length > 0) {
+          const topicList = state.availableTopics
+            .map((article, index) => `${index + 1}. ${article.title}`)
+            .join('\n\n');
+
+          // Create inline keyboard with number buttons
+          const keyboard = new InlineKeyboard();
+          for (let i = 0; i < state.availableTopics.length; i++) {
+            keyboard.text(`${i + 1}`, `topic_${i}`);
+          }
+
+          await ctx.reply(
+            `📰 Choose a topic for today's lesson:\n\n` +
+            `${topicList}`,
+            { reply_markup: keyboard }
+          );
+        } else {
+          await ctx.reply('Something went wrong. Use /reset to start over.');
+        }
+        return;
+      }
+
+      // User is in the middle of tasks (1, 2, or 3)
+      await ctx.reply(
+        `You have a lesson in progress!\n\n` +
+        `Current task: ${state.currentTask === 1 ? 'Reading' : state.currentTask === 2 ? 'Listening' : 'Speaking'}\n\n` +
+        `Use /status to check your progress or /reset to start over.`
+      );
+      return;
+    }
+
+    // No lesson in progress or user finished - allow starting a new one
+    if (state && state.todayDate === today && state.currentTask === 'done') {
+      await ctx.reply('Starting a new lesson...');
+    }
+
+    // Fetch or get cached topics
+    await ctx.reply('🔍 Fetching fresh news topics...');
+
+    let topics = await getDailyTopics();
+
+    if (!topics || topics.length === 0) {
+      // Fetch from GNews API - mix topics from user's preferences
+      const allArticles: NewsArticle[] = [];
+
+      for (const topic of TOPICS) {
+        const articles = await fetchNews(topic.query, 2);
+        allArticles.push(...articles);
+      }
+
+      if (allArticles.length === 0) {
+        await ctx.reply('Sorry, I could not fetch news articles at the moment. Please try again later.');
+        return;
+      }
+
+      // Shuffle and take 5
+      const shuffled = allArticles.sort(() => Math.random() - 0.5);
+      topics = shuffled.slice(0, 5);
+
+      // Cache for today
+      await setDailyTopics(topics);
+    }
+
+    // Create new daily state for this lesson
+    const newState = await createDailyState(telegramId);
+    newState.availableTopics = topics;
+
+    await setDailyState(telegramId, newState);
+
+    // Display topic selection
+    const topicList = topics
+      .map((article, index) => `${index + 1}. ${article.title}`)
+      .join('\n\n');
+
+    // Create inline keyboard with number buttons
+    const keyboard = new InlineKeyboard();
+    for (let i = 0; i < topics.length; i++) {
+      keyboard.text(`${i + 1}`, `topic_${i}`);
+    }
+
+    await ctx.reply(
+      `📰 Choose a topic for today's lesson:\n\n` +
+      `${topicList}`,
+      { reply_markup: keyboard }
+    );
+  });
+
   // /status command - Show current progress
   bot.command('status', async (ctx) => {
     const telegramId = ctx.from?.id;
@@ -83,6 +195,14 @@ export function createBot(token: string): Bot {
       return;
     }
 
+    if (state.currentTask === 'selecting_topic') {
+      await ctx.reply(
+        `📊 Status: Waiting for topic selection\n\n` +
+        `Use /lesson to start a new lesson!`
+      );
+      return;
+    }
+
     if (state.currentTask === 'done') {
       await ctx.reply(
         `✅ All done for today!\n\n` +
@@ -92,13 +212,18 @@ export function createBot(token: string): Bot {
       return;
     }
 
-    const taskNames = ['Reading', 'Listening', 'Speaking'];
-    const currentTaskName = taskNames[(state.currentTask as number) - 1];
+    // currentTask is now guaranteed to be 1, 2, or 3
+    const taskNames: Record<1 | 2 | 3, string> = {
+      1: 'Reading',
+      2: 'Listening',
+      3: 'Speaking',
+    };
+    const currentTaskName = taskNames[state.currentTask];
 
     await ctx.reply(
       `📊 Today's Progress:\n\n` +
       `${state.currentTask === 1 ? '⏳' : '✅'} Task 1: Reading\n` +
-      `${state.currentTask === 2 ? '⏳' : state.currentTask > 2 ? '✅' : '⬜'} Task 2: Listening\n` +
+      `${state.currentTask === 2 ? '⏳' : (typeof state.currentTask === 'number' && state.currentTask > 2) ? '✅' : '⬜'} Task 2: Listening\n` +
       `${state.currentTask === 3 ? '⏳' : '⬜'} Task 3: Speaking\n\n` +
       `Current task: ${currentTaskName}`
     );
@@ -123,10 +248,61 @@ export function createBot(token: string): Bot {
     await resetDailyState(telegramId);
 
     await ctx.reply(
-      `🔄 Today's exercises have been reset.\n\n` +
-      `You can start fresh, but you'll need to wait for the daily push or manually trigger new exercises.\n\n` +
-      `Use /status to check your progress.`
+      `🔄 Your lesson has been reset.\n\n` +
+      `Use /lesson to start a new lesson!`
     );
+  });
+
+  // Handle inline keyboard callbacks (topic selection)
+  bot.on('callback_query:data', async (ctx) => {
+    const telegramId = ctx.from?.id;
+    const data = ctx.callbackQuery.data;
+
+    if (!telegramId) {
+      await ctx.answerCallbackQuery({ text: 'Error: Could not get your user ID.' });
+      return;
+    }
+
+    // Handle topic selection
+    if (data.startsWith('topic_')) {
+      const topicIndex = parseInt(data.replace('topic_', ''));
+      const state = await getDailyState(telegramId);
+
+      if (!state || state.currentTask !== 'selecting_topic') {
+        await ctx.answerCallbackQuery({ text: 'This selection is no longer valid. Use /lesson to start a new lesson.' });
+        return;
+      }
+
+      if (!state.availableTopics || topicIndex >= state.availableTopics.length) {
+        await ctx.answerCallbackQuery({ text: 'Invalid topic selection.' });
+        return;
+      }
+
+      // Store the selected topic
+      state.selectedTopicIndex = topicIndex;
+      state.currentTask = 1; // Move to reading task
+      await setDailyState(telegramId, state);
+
+      // Answer the callback query (removes the loading state from the button)
+      await ctx.answerCallbackQuery();
+
+      // Edit the message to remove the keyboard
+      await ctx.editMessageReplyMarkup({ reply_markup: undefined });
+
+      // Start generating the reading task
+      const selectedArticle = state.availableTopics[topicIndex];
+      await ctx.reply(
+        `Great choice! 📚\n\n` +
+        `You selected: ${selectedArticle.title}\n\n` +
+        `Generating reading exercise...`
+      );
+
+      // TODO: Generate and send reading task
+      await ctx.reply(
+        `Reading task generation coming soon!\n\n` +
+        `Use /status to check your progress.`
+      );
+    }
   });
 
   // Handle text messages (for task answers)

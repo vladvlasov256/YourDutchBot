@@ -1,5 +1,4 @@
 const GNEWS_API_URL = 'https://gnews.io/api/v4/search';
-const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
 
 export interface NewsArticle {
   title: string;
@@ -20,6 +19,8 @@ interface GNewsResponse {
 }
 
 export async function fetchNews(query: string, max: number = 10): Promise<NewsArticle[]> {
+  const GNEWS_API_KEY = process.env.GNEWS_API_KEY;
+
   if (!GNEWS_API_KEY) {
     console.error('GNEWS_API_KEY is not set');
     return [];

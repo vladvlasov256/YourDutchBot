@@ -8,7 +8,8 @@
     "dev:local": "tsx dev-bot.ts",
     "build": "tsc --noEmit",
     "type-check": "tsc --noEmit",
-    "deploy": "vercel --prod"
+    "deploy": "vercel --prod",
+    "setup:commands": "tsx scripts/setup-commands.ts"
   },
   "keywords": [
     "telegram",

@@ -1,17 +1,30 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let _openai: OpenAI | null = null;
 
-const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-const TTS_MODEL = process.env.OPENAI_TTS_MODEL || 'tts-1';
-const STT_MODEL = process.env.OPENAI_STT_MODEL || 'whisper-1';
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return _openai;
+}
+
+function getModel(type: 'chat' | 'tts' | 'stt'): string {
+  if (type === 'chat') {
+    return process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  }
+  if (type === 'tts') {
+    return process.env.OPENAI_TTS_MODEL || 'tts-1';
+  }
+  return process.env.OPENAI_STT_MODEL || 'whisper-1';
+}
 
 // Chat completion helper
 export async function chat(systemPrompt: string, userMessage: string): Promise<string> {
-  const response = await openai.chat.completions.create({
-    model: MODEL,
+  const response = await getOpenAI().chat.completions.create({
+    model: getModel('chat'),
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userMessage },
@@ -24,8 +37,8 @@ export async function chat(systemPrompt: string, userMessage: string): Promise<s
 
 // Text-to-Speech helper
 export async function textToSpeech(text: string): Promise<Buffer> {
-  const response = await openai.audio.speech.create({
-    model: TTS_MODEL,
+  const response = await getOpenAI().audio.speech.create({
+    model: getModel('tts'),
     voice: 'alloy',
     input: text,
   });
@@ -40,8 +53,8 @@ export async function transcribeAudio(audioBuffer: Buffer, filename: string = 'a
   // Create a File-like object from the buffer
   const file = new File([new Uint8Array(audioBuffer)], filename, { type: 'audio/ogg' });
 
-  const response = await openai.audio.transcriptions.create({
-    model: STT_MODEL,
+  const response = await getOpenAI().audio.transcriptions.create({
+    model: getModel('stt'),
     file: file,
     language: 'nl', // Dutch
   });
