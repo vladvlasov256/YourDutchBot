@@ -1,0 +1,30 @@
+{
+  "name": "yourdutchbot",
+  "version": "1.0.0",
+  "description": "A Telegram bot for learning Dutch (A2 level) for inburgeringsexamen preparation",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "tsc",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "dutch",
+    "learning",
+    "language"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/kv": "^3.0.0",
+    "grammy": "^1.39.2",
+    "openai": "^6.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "typescript": "^5.9.3",
+    "vercel": "^50.1.3"
+  }
+}
