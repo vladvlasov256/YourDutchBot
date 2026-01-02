@@ -2,6 +2,7 @@ import { Bot, Context, InlineKeyboard } from 'grammy';
 import { getUserProfile, createUserProfile, getDailyState, resetDailyState, createDailyState, setDailyState, getDailyTopics, setDailyTopics } from './storage.js';
 import { TOPICS } from '../config/topics.js';
 import { fetchNews, NewsArticle } from './gnews.js';
+import { generateReadingTask } from './tasks/reading.js';
 
 export function createBot(token: string): Bot {
   const bot = new Bot(token);
@@ -95,11 +96,63 @@ export function createBot(token: string): Bot {
         return;
       }
 
-      // User is in the middle of tasks (1, 2, or 3)
+      // User is in the middle of tasks (1, 2, or 3) - re-display the current task
+      if (state.currentTask === 1 && state.tasks[1]) {
+        // Re-display reading task
+        const readingTask = state.tasks[1];
+
+        await ctx.reply(
+          `📖 *Reading Exercise* (resuming)\n\n` +
+          `${readingTask.content}\n\n` +
+          `_Answer the questions below:_`,
+          { parse_mode: 'Markdown' }
+        );
+
+        // Display each question with inline keyboard
+        for (let i = 0; i < readingTask.questions.length; i++) {
+          const q = readingTask.questions[i];
+          const keyboard = new InlineKeyboard()
+            .text('A', `reading_${i}_A`)
+            .text('B', `reading_${i}_B`)
+            .text('C', `reading_${i}_C`);
+
+          await ctx.reply(
+            `*Question ${i + 1}:* ${q.question}\n\n` +
+            `A) ${q.options[0]}\n` +
+            `B) ${q.options[1]}\n` +
+            `C) ${q.options[2]}`,
+            { parse_mode: 'Markdown', reply_markup: keyboard }
+          );
+        }
+
+        await ctx.reply(
+          `📝 Select your answers for all 3 questions using the buttons above.`
+        );
+        return;
+      }
+
+      if (state.currentTask === 2 && state.tasks[2]) {
+        // TODO: Re-display listening task when implemented
+        await ctx.reply(
+          `🎧 Listening task in progress.\n\n` +
+          `Use /reset to start over.`
+        );
+        return;
+      }
+
+      if (state.currentTask === 3 && state.tasks[3]) {
+        // TODO: Re-display speaking task when implemented
+        await ctx.reply(
+          `🎤 Speaking task in progress.\n\n` +
+          `Use /reset to start over.`
+        );
+        return;
+      }
+
+      // Fallback if task data is missing
       await ctx.reply(
-        `You have a lesson in progress!\n\n` +
-        `Current task: ${state.currentTask === 1 ? 'Reading' : state.currentTask === 2 ? 'Listening' : 'Speaking'}\n\n` +
-        `Use /status to check your progress or /reset to start over.`
+        `You have a lesson in progress but I can't find the task data.\n\n` +
+        `Use /reset to start over.`
       );
       return;
     }
@@ -297,11 +350,49 @@ export function createBot(token: string): Bot {
         `Generating reading exercise...`
       );
 
-      // TODO: Generate and send reading task
-      await ctx.reply(
-        `Reading task generation coming soon!\n\n` +
-        `Use /status to check your progress.`
-      );
+      try {
+        // Generate the reading task using OpenAI
+        const readingTask = await generateReadingTask(selectedArticle);
+
+        // Save to state
+        state.tasks[1] = readingTask;
+        await setDailyState(telegramId, state);
+
+        // Display the reading task
+        await ctx.reply(
+          `📖 *Reading Exercise*\n\n` +
+          `${readingTask.content}\n\n` +
+          `_Answer the questions below:_`,
+          { parse_mode: 'Markdown' }
+        );
+
+        // Display each question with inline keyboard
+        for (let i = 0; i < readingTask.questions.length; i++) {
+          const q = readingTask.questions[i];
+          const keyboard = new InlineKeyboard()
+            .text('A', `reading_${i}_A`)
+            .text('B', `reading_${i}_B`)
+            .text('C', `reading_${i}_C`);
+
+          await ctx.reply(
+            `*Question ${i + 1}:* ${q.question}\n\n` +
+            `A) ${q.options[0]}\n` +
+            `B) ${q.options[1]}\n` +
+            `C) ${q.options[2]}`,
+            { parse_mode: 'Markdown', reply_markup: keyboard }
+          );
+        }
+
+        await ctx.reply(
+          `📝 Select your answers for all 3 questions using the buttons above.`
+        );
+
+      } catch (error) {
+        console.error('Error generating reading task:', error);
+        await ctx.reply(
+          `Sorry, I encountered an error generating the reading exercise. Please try again with /reset and /lesson.`
+        );
+      }
     }
   });
 
