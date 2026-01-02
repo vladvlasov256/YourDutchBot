@@ -1,15 +1,16 @@
 # Dutch Learning Telegram Bot — MVP
 
-A Telegram bot for learning Dutch (A2 level) for inburgeringsexamen preparation. The bot proactively sends daily exercises based on fresh news from topics the user cares about.
+A Telegram bot for learning Dutch (A2 level) for inburgeringsexamen preparation. Students choose topics from fresh news they care about and practice reading, listening, and speaking.
 
 ## Core Concept
 
 **Problem:** Language learning apps are boring. Tutors are expensive and passive.
 
 **Solution:** A Telegram bot that:
-- Sends daily exercises every morning (user doesn't need to initiate)
-- Uses fresh news from topics user actually cares about
-- Covers all 4 language skills: reading, listening, speaking, writing
+- Let students choose topics from fresh news headlines
+- Provides on-demand lessons via `/lesson` command
+- Optionally sends daily exercises every morning (via cron)
+- Covers 3 language skills: reading, listening, speaking
 - Outputs vocabulary in a format suitable for Anki
 
 ## Tech Stack
@@ -23,12 +24,23 @@ A Telegram bot for learning Dutch (A2 level) for inburgeringsexamen preparation.
 - **Storage:** Vercel KV (Redis)
 - **Language:** TypeScript
 
-## Daily Flow
+## Lesson Flow
 
 ```
-08:00 CET — Cron triggers /api/daily-push
+User types /lesson
     ↓
-Bot sends Task #1 (Reading) to all active users
+Bot fetches 5 news headlines from GNews (or uses cached topics for today)
+    ↓
+Bot: "Choose a topic:
+1️⃣ Manchester United wins 2-0
+2️⃣ Python 3.13 released
+3️⃣ Russia elections update
+4️⃣ Y Combinator new batch
+5️⃣ Tech layoffs continue"
+    ↓
+User: "2"
+    ↓
+Bot generates Task #1 (Reading) from selected news article
     ↓
 User answers → Bot evaluates → sends Task #2 (Listening)
     ↓
@@ -38,7 +50,17 @@ User sends voice message → Bot transcribes & evaluates
     ↓
 Bot sends completion message + vocabulary list (max 10 words)
     ↓
-state.currentTask = "done" — bot waits until next day
+state.currentTask = "done" — user can start a new lesson or wait for tomorrow
+```
+
+## Optional: Daily Push Flow
+
+```
+08:00 CET — Cron triggers /api/daily-push
+    ↓
+Bot sends topic selection to all active users
+    ↓
+[Same flow as /lesson command]
 ```
 
 ## Tasks Specification
@@ -82,7 +104,8 @@ state.currentTask = "done" — bot waits until next day
 | Command   | Description                              |
 |-----------|------------------------------------------|
 | `/start`  | Register user, show welcome message      |
-| `/reset`  | Reset current day, start exercises over  |
+| `/lesson` | Start a new lesson (choose topic from news) |
+| `/reset`  | Reset current lesson, start over         |
 | `/status` | Show today's progress (task 1/2/3/done)  |
 
 ## Hardcoded Topics
@@ -133,7 +156,7 @@ Key: user:{telegramId}:profile
 {
   telegramId: number,
   firstName: string,
-  topics: string[],        // topic IDs
+  topics: string[],        // topic IDs for news filtering
   timezone: "CET",
   createdAt: string        // ISO date
 }
@@ -145,7 +168,8 @@ Key: user:{telegramId}:state
 
 {
   todayDate: "2025-01-15",           // ISO date
-  currentTask: 1 | 2 | 3 | "done",
+  currentTask: 1 | 2 | 3 | "done" | "selecting_topic",
+  selectedTopicIndex: number | null, // Index of chosen news article
   tasks: {
     1: {
       articleTitle: string,
@@ -174,6 +198,27 @@ Key: user:{telegramId}:state
 }
 ```
 
+### Daily Topics Cache
+```
+Key: topics:{date}                   // e.g., "topics:2025-01-15"
+
+{
+  date: "2025-01-15",
+  topics: [
+    {
+      title: string,
+      description: string,
+      url: string,
+      content: string,
+      source: { name: string, url: string }
+    }
+  ],
+  fetchedAt: string                  // ISO datetime
+}
+```
+
+**Note:** Topics are cached per day and reused for all users and all lessons that day to save GNews API quota (100 requests/day on free tier).
+
 ## Configuration Files
 
 ### vercel.json
@@ -201,51 +246,80 @@ KV_REST_API_TOKEN=xxx
 
 ## Implementation Checklist
 
-### Phase 1: Project Setup
-- [ ] Initialize project with `npm init`
-- [ ] Install dependencies: grammy, openai, @vercel/kv
-- [ ] Configure TypeScript
-- [ ] Set up vercel.json with cron
-- [ ] Create .env.local with all keys
+### Phase 1: Project Setup ✅
+- [x] Initialize project with `pnpm init`
+- [x] Install dependencies: grammy, openai, @vercel/kv
+- [x] Configure TypeScript
+- [x] Set up vercel.json with cron
+- [x] Create .env with all keys
+- [x] Deploy to Vercel
+- [x] Set up webhook
 
-### Phase 2: Core Infrastructure
-- [ ] Implement /lib/telegram.ts — sendMessage, sendVoice, answerCallback
-- [ ] Implement /lib/openai.ts — chat completion, whisper, tts
-- [ ] Implement /lib/gnews.ts — fetch news by topic
-- [ ] Implement /lib/storage.ts — get/set user profile and state
+### Phase 2: Core Infrastructure ✅
+- [x] Implement /lib/telegram.ts — sendMessage, sendVoice, downloadFile
+- [x] Implement /lib/openai.ts — chat completion, whisper, tts
+- [x] Implement /lib/gnews.ts — fetch news by topic
+- [x] Implement /lib/storage.ts — get/set user profile and state
+- [x] Implement /config/topics.ts — topic definitions
+- [x] Implement /config/prompts.ts — system prompts for OpenAI
 
-### Phase 3: Webhook Handler
-- [ ] POST /api/webhook.ts — receive Telegram updates
-- [ ] Handle /start command — create user profile
-- [ ] Handle /reset command — clear today's state
-- [ ] Handle /status command — show current progress
-- [ ] Handle text messages — process task answers
-- [ ] Handle voice messages — process speaking task
+### Phase 3: Webhook Handler ✅
+- [x] POST /api/webhook.ts — receive Telegram updates
+- [x] Implement /lib/bot.ts — shared bot logic for webhook and polling
+- [x] Handle /start command — create user profile
+- [x] Handle /reset command — clear today's state
+- [x] Handle /status command — show current progress
+- [x] Handle text messages — placeholder for task answers
+- [x] Handle voice messages — placeholder for speaking task
+- [x] Create dev-bot.ts — local development with polling
 
-### Phase 4: Task Generation
+### Phase 4: Lesson Flow (IN PROGRESS)
+- [ ] Implement /lesson command
+- [ ] Fetch and cache daily topics from GNews
+- [ ] Show topic selection (5 news headlines)
+- [ ] Handle topic selection (numeric input 1-5)
+- [ ] Generate Reading task from selected article
 - [ ] Implement generateReadingTask(article) — adapt news to A2 Dutch
+- [ ] Handle reading task answers
+- [ ] Generate Listening task
 - [ ] Implement generateListeningTask(topic) — create short audio content
+- [ ] Handle listening task answers
+- [ ] Generate Speaking task
 - [ ] Implement generateSpeakingPrompt(topic) — create speaking prompt
+- [ ] Handle voice messages for speaking task
 - [ ] Implement evaluateSpeaking(transcript) — assess user's speech
+- [ ] Send vocabulary list at completion
 
-### Phase 5: Daily Push
+### Phase 5: Task Processing Logic
+- [ ] Validate and parse task answers (A B C format or 1 2 3)
+- [ ] Evaluate answers and provide feedback
+- [ ] Track correct/incorrect answers
+- [ ] Progress through tasks: Reading → Listening → Speaking
+- [ ] Extract and aggregate vocabulary words
+- [ ] Mark lesson as complete
+
+### Phase 6: Daily Push (OPTIONAL - Later)
 - [ ] GET /api/daily-push.ts — cron handler
 - [ ] Fetch all active users
-- [ ] For each user: generate Task 1, send message, update state
+- [ ] For each user: send topic selection
 - [ ] Handle errors gracefully (don't fail entire batch)
-
-### Phase 6: Flow Logic
-- [ ] After Task 1 answered correctly → generate and send Task 2
-- [ ] After Task 2 answered correctly → generate and send Task 3
-- [ ] After Task 3 voice received → evaluate and send summary
-- [ ] Send vocabulary list at the end
-- [ ] Set state to "done"
 
 ### Phase 7: Polish
 - [ ] Error handling and user-friendly error messages
 - [ ] Input validation
 - [ ] Rate limiting considerations
 - [ ] Logging for debugging
+- [ ] Handle edge cases (network errors, API failures)
+- [ ] Improve topic caching TTL
+
+### Phase 8: Switch to ElevenLabs TTS (OPTIONAL)
+- [ ] Sign up for ElevenLabs API
+- [ ] Add ELEVENLABS_API_KEY to environment variables
+- [ ] Implement lib/elevenlabs.ts — TTS helper
+- [ ] Test Dutch voice quality
+- [ ] Compare with OpenAI TTS
+- [ ] Switch if quality is significantly better
+- [ ] Update config to use ElevenLabs by default
 
 ## UI/UX Guidelines
 
@@ -257,13 +331,24 @@ KV_REST_API_TOKEN=xxx
 
 ## Example Messages
 
-### Morning Push (Task 1)
+### /lesson Command - Topic Selection
 ```
-🌅 Goedemorgen! Time for your Dutch practice.
+📰 Choose a topic for today's lesson:
 
-📰 Today's topic: Manchester United
+1️⃣ Manchester United defeats Liverpool 2-0 in Premier League clash
+2️⃣ Python 3.13 introduces experimental JIT compiler
+3️⃣ Russia announces new economic measures
+4️⃣ Y Combinator's W25 batch features 200 startups
+5️⃣ Meta announces major AI breakthrough
 
-[Dutch text about recent ManU news, 100-150 words]
+Reply with the number (1-5) of your chosen topic.
+```
+
+### Task 1: Reading
+```
+📖 Reading Exercise
+
+[Dutch text adapted to A2 level, 100-150 words about the selected topic]
 
 ❓ Questions:
 
@@ -282,7 +367,7 @@ KV_REST_API_TOKEN=xxx
    B) Zondag
    C) Maandag
 
-Reply with your answers (e.g., "A B C")
+Reply with your answers (e.g., "A B C" or "1 2 3")
 ```
 
 ### Task Completion
@@ -309,19 +394,26 @@ See you tomorrow! Tot morgen! 👋
 
 ## Notes & Risks
 
-1. **GNews free tier:** 100 requests/day — should be enough for MVP
+1. **GNews free tier:** 100 requests/day
+   - Solution: Cache topics per day (one fetch for all users/lessons)
+   - With 5 topics cached per day, supports up to 20 users or unlimited lessons per day
 2. **OpenAI TTS Dutch quality:** Test early, switch to ElevenLabs if needed
-3. **Summer time:** Cron is UTC-based, will need adjustment in March/October
+3. **Summer time:** Cron is UTC-based, will need adjustment in March/October (if implementing daily push)
 4. **Whisper accuracy:** Generally good for Dutch, but monitor and adjust prompts
 5. **Telegram voice messages:** Come as .oga files, need to download and send to Whisper
+6. **Topic selection UX:** Users might want to see more than 5 topics or refresh topics - consider for future
+7. **Multiple lessons per day:** May want to limit to prevent abuse or OpenAI cost overrun
 
 ## Future Enhancements (Post-MVP)
 
 - [ ] Writing task (Task 4)
-- [ ] Topic selection command
-- [ ] Progress statistics
+- [ ] Progress statistics and history
 - [ ] Streak tracking
+- [ ] Lesson limits (e.g., max 3 lessons per day)
+- [ ] Topic refresh command (get new topics for today)
 - [ ] KNM (Dutch society knowledge) exercises
 - [ ] Difficulty progression (A2 → B1)
 - [ ] Evening reminder if tasks not completed
-- [ ] Export vocabulary to Anki format
+- [ ] Export vocabulary to Anki format (.apkg or CSV)
+- [ ] User preferences (favorite topics, difficulty level)
+- [ ] Multiple languages for interface (not just English)
