@@ -1,13 +1,6 @@
-import { Bot, webhookCallback } from 'grammy';
+import { webhookCallback } from 'grammy';
+import { createBot } from '../lib/bot.js';
 
-const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN || '');
-
-bot.command('start', async (ctx) => {
-  await ctx.reply('Hello! 👋 Welcome to YourDutchBot. I will help you learn Dutch!');
-});
-
-bot.on('message', async (ctx) => {
-  await ctx.reply('Bot is under construction. Stay tuned! 🚧');
-});
+const bot = createBot(process.env.TELEGRAM_BOT_TOKEN || '');
 
 export default webhookCallback(bot, 'https');
