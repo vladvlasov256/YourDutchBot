@@ -54,6 +54,10 @@ export interface DailyState {
   };
   collectedWords: VocabularyWord[];
   completedAt: string | null;
+  readingProgress?: {
+    currentQuestion: 0 | 1 | 2 | 3;  // 0 = ready button shown, 1-3 = question number
+    userAnswers: ('A' | 'B' | 'C' | null)[];  // Track answers for final summary
+  };
 }
 
 // Daily Topics Cache Types

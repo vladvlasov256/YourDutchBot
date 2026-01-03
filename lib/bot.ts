@@ -1,5 +1,5 @@
 import { Bot, Context, InlineKeyboard } from 'grammy';
-import { getUserProfile, createUserProfile, getDailyState, resetDailyState, createDailyState, setDailyState, getDailyTopics, setDailyTopics } from './storage.js';
+import { getUserProfile, createUserProfile, getDailyState, resetDailyState, createDailyState, setDailyState, getDailyTopics, setDailyTopics, VocabularyWord } from './storage.js';
 import { TOPICS } from '../config/topics.js';
 import { fetchNews, NewsArticle } from './gnews.js';
 import { generateReadingTask } from './tasks/reading.js';
@@ -100,24 +100,58 @@ export function createBot(token: string): Bot {
       if (state.currentTask === 1 && state.tasks[1]) {
         // Re-display reading task
         const readingTask = state.tasks[1];
+        const progress = state.readingProgress;
 
-        await ctx.reply(
-          `📖 *Reading Exercise* (resuming)\n\n` +
-          `${readingTask.content}\n\n` +
-          `_Answer the questions below:_`,
-          { parse_mode: 'Markdown' }
-        );
+        // If no progress data, initialize it (backward compatibility)
+        if (!progress) {
+          state.readingProgress = {
+            currentQuestion: 0,
+            userAnswers: [null, null, null]
+          };
+          await setDailyState(telegramId, state);
+        }
 
-        // Display each question with inline keyboard
-        for (let i = 0; i < readingTask.questions.length; i++) {
-          const q = readingTask.questions[i];
-          const keyboard = new InlineKeyboard()
-            .text('A', `reading_${i}_A`)
-            .text('B', `reading_${i}_B`)
-            .text('C', `reading_${i}_C`);
+        const currentQ = progress?.currentQuestion || 0;
+
+        if (currentQ === 0) {
+          // User hasn't started - show vocabulary, text, and ready button
+          const vocabList = readingTask.words
+            .map(word => {
+              const [dutch, english] = word.split(':');
+              return `• *${dutch}* - _${english}_`;
+            })
+            .join('\n');
 
           await ctx.reply(
-            `*Question ${i + 1}:* ${q.question}\n\n` +
+            `📚 *Vocabulary* (resuming)\n\n${vocabList}`,
+            { parse_mode: 'Markdown' }
+          );
+
+          await ctx.reply(
+            `📖 *Reading Exercise*\n\n${readingTask.content}`,
+            { parse_mode: 'Markdown' }
+          );
+
+          const readyKeyboard = new InlineKeyboard()
+            .text('✅ Ready for the questions', 'reading_ready');
+
+          await ctx.reply(
+            `Take your time to read the text and learn the vocabulary.`,
+            { reply_markup: readyKeyboard }
+          );
+        } else {
+          // User is on a specific question (1, 2, or 3)
+          const questionIndex = currentQ - 1;
+          const q = readingTask.questions[questionIndex];
+
+          const keyboard = new InlineKeyboard()
+            .text('A', `reading_answer_${currentQ}_A`)
+            .text('B', `reading_answer_${currentQ}_B`)
+            .text('C', `reading_answer_${currentQ}_C`);
+
+          await ctx.reply(
+            `📖 *Reading Exercise* (resuming)\n\n` +
+            `*Question ${currentQ}:* ${q.question}\n\n` +
             `A) ${q.options[0]}\n` +
             `B) ${q.options[1]}\n` +
             `C) ${q.options[2]}`,
@@ -125,9 +159,6 @@ export function createBot(token: string): Bot {
           );
         }
 
-        await ctx.reply(
-          `📝 Select your answers for all 3 questions using the buttons above.`
-        );
         return;
       }
 
@@ -354,37 +385,42 @@ export function createBot(token: string): Bot {
         // Generate the reading task using OpenAI
         const readingTask = await generateReadingTask(selectedArticle);
 
-        // Save to state
+        // Save to state and initialize reading progress
         state.tasks[1] = readingTask;
+        state.readingProgress = {
+          currentQuestion: 0,  // 0 = not started, need to click "Ready"
+          userAnswers: [null, null, null]
+        };
         await setDailyState(telegramId, state);
 
-        // Display the reading task
+        // Display vocabulary
+        const vocabList = readingTask.words
+          .map(word => {
+            const [dutch, english] = word.split(':');
+            return `• *${dutch}* - _${english}_`;
+          })
+          .join('\n');
+
         await ctx.reply(
-          `📖 *Reading Exercise*\n\n` +
-          `${readingTask.content}\n\n` +
-          `_Answer the questions below:_`,
+          `📚 *Vocabulary*\n\n` +
+          `${vocabList}`,
           { parse_mode: 'Markdown' }
         );
 
-        // Display each question with inline keyboard
-        for (let i = 0; i < readingTask.questions.length; i++) {
-          const q = readingTask.questions[i];
-          const keyboard = new InlineKeyboard()
-            .text('A', `reading_${i}_A`)
-            .text('B', `reading_${i}_B`)
-            .text('C', `reading_${i}_C`);
+        // Display the reading text (now includes Dutch title from OpenAI)
+        await ctx.reply(
+          `📖 *Reading Exercise*\n\n` +
+          `${readingTask.content}`,
+          { parse_mode: 'Markdown' }
+        );
 
-          await ctx.reply(
-            `*Question ${i + 1}:* ${q.question}\n\n` +
-            `A) ${q.options[0]}\n` +
-            `B) ${q.options[1]}\n` +
-            `C) ${q.options[2]}`,
-            { parse_mode: 'Markdown', reply_markup: keyboard }
-          );
-        }
+        // Display Ready button
+        const readyKeyboard = new InlineKeyboard()
+          .text('✅ Ready for the questions', 'reading_ready');
 
         await ctx.reply(
-          `📝 Select your answers for all 3 questions using the buttons above.`
+          `Take your time to read the text and learn the vocabulary.`,
+          { reply_markup: readyKeyboard }
         );
 
       } catch (error) {
@@ -393,6 +429,167 @@ export function createBot(token: string): Bot {
           `Sorry, I encountered an error generating the reading exercise. Please try again with /reset and /lesson.`
         );
       }
+    }
+
+    // Handle reading_ready callback
+    if (data === 'reading_ready') {
+      const state = await getDailyState(telegramId);
+
+      if (!state || state.currentTask !== 1 || !state.tasks[1]) {
+        await ctx.answerCallbackQuery({
+          text: 'This action is no longer valid.'
+        });
+        return;
+      }
+
+      // Move to question 1
+      if (!state.readingProgress) {
+        state.readingProgress = {
+          currentQuestion: 1,
+          userAnswers: [null, null, null]
+        };
+      } else {
+        state.readingProgress.currentQuestion = 1;
+      }
+      await setDailyState(telegramId, state);
+
+      // Answer callback query
+      await ctx.answerCallbackQuery();
+
+      // Remove the ready button
+      await ctx.editMessageReplyMarkup({ reply_markup: undefined });
+
+      // Display Question 1
+      const readingTask = state.tasks[1];
+      const q = readingTask.questions[0];
+
+      const keyboard = new InlineKeyboard()
+        .text('A', 'reading_answer_1_A')
+        .text('B', 'reading_answer_1_B')
+        .text('C', 'reading_answer_1_C');
+
+      await ctx.reply(
+        `*Question 1:* ${q.question}\n\n` +
+        `A) ${q.options[0]}\n` +
+        `B) ${q.options[1]}\n` +
+        `C) ${q.options[2]}`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+
+      return;
+    }
+
+    // Handle reading answer callbacks
+    if (data.startsWith('reading_answer_')) {
+      const parts = data.replace('reading_answer_', '').split('_');
+      const questionNumber = parseInt(parts[0]) as 1 | 2 | 3;
+      const userAnswer = parts[1] as 'A' | 'B' | 'C';
+
+      const state = await getDailyState(telegramId);
+
+      if (!state || state.currentTask !== 1 || !state.tasks[1]) {
+        await ctx.answerCallbackQuery({
+          text: 'This action is no longer valid.'
+        });
+        return;
+      }
+
+      const readingTask = state.tasks[1];
+      const questionIndex = questionNumber - 1;
+      const question = readingTask.questions[questionIndex];
+
+      // Ensure progress exists
+      if (!state.readingProgress) {
+        state.readingProgress = {
+          currentQuestion: questionNumber,
+          userAnswers: [null, null, null]
+        };
+      }
+
+      // Save user's answer
+      state.readingProgress.userAnswers[questionIndex] = userAnswer;
+
+      // Check if answer is correct
+      const isCorrect = userAnswer === question.correct;
+
+      // Answer callback query
+      await ctx.answerCallbackQuery();
+
+      // Remove the buttons
+      await ctx.editMessageReplyMarkup({ reply_markup: undefined });
+
+      // Show feedback
+      if (isCorrect) {
+        await ctx.reply(
+          `✅ *Correct!*\n\n` +
+          `The answer is ${userAnswer}.`,
+          { parse_mode: 'Markdown' }
+        );
+      } else {
+        await ctx.reply(
+          `❌ *Not quite.*\n\n` +
+          `The correct answer is ${question.correct}.`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      // Determine next step
+      if (questionNumber < 3) {
+        // Move to next question
+        state.readingProgress.currentQuestion = (questionNumber + 1) as 1 | 2 | 3;
+        await setDailyState(telegramId, state);
+
+        const nextQuestionIndex = questionNumber;
+        const nextQ = readingTask.questions[nextQuestionIndex];
+
+        const keyboard = new InlineKeyboard()
+          .text('A', `reading_answer_${questionNumber + 1}_A`)
+          .text('B', `reading_answer_${questionNumber + 1}_B`)
+          .text('C', `reading_answer_${questionNumber + 1}_C`);
+
+        await ctx.reply(
+          `*Question ${questionNumber + 1}:* ${nextQ.question}\n\n` +
+          `A) ${nextQ.options[0]}\n` +
+          `B) ${nextQ.options[1]}\n` +
+          `C) ${nextQ.options[2]}`,
+          { parse_mode: 'Markdown', reply_markup: keyboard }
+        );
+      } else {
+        // Finished all questions - show summary and move to next task
+        const answers = state.readingProgress.userAnswers;
+        const correctCount = readingTask.questions.filter(
+          (q, i) => answers[i] === q.correct
+        ).length;
+
+        await ctx.reply(
+          `🎉 *Reading Exercise Complete!*\n\n` +
+          `You got ${correctCount} out of 3 questions correct.\n\n` +
+          `Great work! 🇳🇱`,
+          { parse_mode: 'Markdown' }
+        );
+
+        // Add vocabulary to collected words
+        const newWords: VocabularyWord[] = readingTask.words.map(word => {
+          const [dutch, english] = word.split(':');
+          return { dutch, english };
+        });
+        state.collectedWords.push(...newWords);
+
+        // Move to next task
+        state.currentTask = 2;
+        // Clear reading progress
+        state.readingProgress = undefined;
+        await setDailyState(telegramId, state);
+
+        // TODO: Start listening task or notify user
+        await ctx.reply(
+          `📝 Reading task completed!\n\n` +
+          `Next up: Listening exercise (coming soon...)\n\n` +
+          `Use /status to check your progress.`
+        );
+      }
+
+      return;
     }
   });
 

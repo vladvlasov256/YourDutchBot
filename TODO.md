@@ -274,13 +274,20 @@ KV_REST_API_TOKEN=xxx
 - [x] Create dev-bot.ts — local development with polling
 
 ### Phase 4: Lesson Flow (IN PROGRESS)
-- [ ] Implement /lesson command
-- [ ] Fetch and cache daily topics from GNews
-- [ ] Show topic selection (5 news headlines)
-- [ ] Handle topic selection (numeric input 1-5)
-- [ ] Generate Reading task from selected article
-- [ ] Implement generateReadingTask(article) — adapt news to A2 Dutch
-- [ ] Handle reading task answers
+- [x] Implement /lesson command
+- [x] Fetch and cache daily topics from GNews
+- [x] Show topic selection (5 news headlines with inline keyboard)
+- [x] Handle topic selection (inline button callbacks)
+- [x] Generate Reading task from selected article
+- [x] Implement generateReadingTask(article) — adapt news to A2 Dutch
+- [x] **Reading Task UX Improvements**
+  - [x] Add readingProgress sub-state to DailyState
+  - [x] Show vocabulary list before reading text
+  - [x] Add "Ready" button after text
+  - [x] Show questions one at a time (not all at once)
+  - [x] Provide immediate feedback (✅/❌) after each answer
+  - [x] Show final summary (X/3 correct) after all questions
+  - [x] Update resume logic to handle sub-states
 - [ ] Generate Listening task
 - [ ] Implement generateListeningTask(topic) — create short audio content
 - [ ] Handle listening task answers
