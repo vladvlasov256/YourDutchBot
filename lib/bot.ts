@@ -162,22 +162,42 @@ export function createBot(token: string): Bot {
         return;
       }
 
-      if (state.currentTask === 2 && state.tasks[2]) {
-        // TODO: Re-display listening task when implemented
-        await ctx.reply(
-          `🎧 Listening task in progress.\n\n` +
-          `Use /reset to start over.`
-        );
-        return;
+      if (state.currentTask === 2) {
+        if (state.tasks[2]) {
+          // TODO: Re-display listening task when implemented
+          await ctx.reply(
+            `🎧 Listening task in progress.\n\n` +
+            `Use /reset to start over.`
+          );
+          return;
+        } else {
+          // Listening task not implemented yet
+          await ctx.reply(
+            `✅ Reading task completed!\n\n` +
+            `🎧 Listening task is coming soon...\n\n` +
+            `For now, your lesson is complete. Use /reset to start a new lesson.`
+          );
+          return;
+        }
       }
 
-      if (state.currentTask === 3 && state.tasks[3]) {
-        // TODO: Re-display speaking task when implemented
-        await ctx.reply(
-          `🎤 Speaking task in progress.\n\n` +
-          `Use /reset to start over.`
-        );
-        return;
+      if (state.currentTask === 3) {
+        if (state.tasks[3]) {
+          // TODO: Re-display speaking task when implemented
+          await ctx.reply(
+            `🎤 Speaking task in progress.\n\n` +
+            `Use /reset to start over.`
+          );
+          return;
+        } else {
+          // Speaking task not implemented yet
+          await ctx.reply(
+            `✅ Listening task completed!\n\n` +
+            `🎤 Speaking task is coming soon...\n\n` +
+            `For now, your lesson is complete. Use /reset to start a new lesson.`
+          );
+          return;
+        }
       }
 
       // Fallback if task data is missing
@@ -202,7 +222,18 @@ export function createBot(token: string): Bot {
       // Fetch from GNews API - mix topics from user's preferences
       const allArticles: NewsArticle[] = [];
 
-      for (const topic of TOPICS) {
+      // Add delay between requests to avoid rate limiting
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+      for (let i = 0; i < TOPICS.length; i++) {
+        const topic = TOPICS[i];
+
+        // Add 500ms delay between requests (except for the first one)
+        if (i > 0) {
+          await delay(500);
+        }
+
+        // Fetch only 1 article per topic (we need 5 total, we have 4 topics)
         const articles = await fetchNews(topic.query, 2);
         allArticles.push(...articles);
       }
@@ -575,17 +606,19 @@ export function createBot(token: string): Bot {
         });
         state.collectedWords.push(...newWords);
 
-        // Move to next task
-        state.currentTask = 2;
+        // Mark lesson as done (listening/speaking not implemented yet)
+        state.currentTask = 'done';
+        state.completedAt = new Date().toISOString();
         // Clear reading progress
         state.readingProgress = undefined;
         await setDailyState(telegramId, state);
 
-        // TODO: Start listening task or notify user
+        // Show completion message
         await ctx.reply(
-          `📝 Reading task completed!\n\n` +
-          `Next up: Listening exercise (coming soon...)\n\n` +
-          `Use /status to check your progress.`
+          `🎉 *Lesson Complete!*\n\n` +
+          `Great job! You've completed today's reading exercise.\n\n` +
+          `Use /lesson to start a new lesson!`,
+          { parse_mode: 'Markdown' }
         );
       }
 

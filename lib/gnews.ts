@@ -38,7 +38,11 @@ export async function fetchNews(query: string, max: number = 10): Promise<NewsAr
     const response = await fetch(url);
 
     if (!response.ok) {
-      console.error('GNews API error:', response.status, response.statusText);
+      if (response.status === 429) {
+        console.error('GNews API error: 429 Too Many Requests - rate limit exceeded');
+      } else {
+        console.error('GNews API error:', response.status, response.statusText);
+      }
       return [];
     }
 
