@@ -1,8 +1,9 @@
-import { Bot, Context, InlineKeyboard } from 'grammy';
+import { Bot, Context, InlineKeyboard, InputFile } from 'grammy';
 import { getUserProfile, createUserProfile, getDailyState, resetDailyState, createDailyState, setDailyState, getDailyTopics, setDailyTopics, VocabularyWord } from './storage.js';
 import { TOPICS } from '../config/topics.js';
 import { fetchNews, NewsArticle } from './gnews.js';
 import { generateReadingTask } from './tasks/reading.js';
+import { generateListeningTask } from './tasks/listening.js';
 
 export function createBot(token: string): Bot {
   const bot = new Bot(token);
@@ -162,23 +163,71 @@ export function createBot(token: string): Bot {
         return;
       }
 
-      if (state.currentTask === 2) {
-        if (state.tasks[2]) {
-          // TODO: Re-display listening task when implemented
-          await ctx.reply(
-            `🎧 Listening task in progress.\n\n` +
-            `Use /reset to start over.`
-          );
-          return;
-        } else {
-          // Listening task not implemented yet
-          await ctx.reply(
-            `✅ Reading task completed!\n\n` +
-            `🎧 Listening task is coming soon...\n\n` +
-            `For now, your lesson is complete. Use /reset to start a new lesson.`
-          );
-          return;
+      if (state.currentTask === 2 && state.tasks[2]) {
+        // Re-display listening task
+        const listeningTask = state.tasks[2];
+        const progress = state.listeningProgress;
+
+        // If no progress data, initialize it (backward compatibility)
+        if (!progress) {
+          state.listeningProgress = {
+            currentQuestion: 0,
+            userAnswers: [null, null]
+          };
+          await setDailyState(telegramId, state);
         }
+
+        const currentQ = progress?.currentQuestion || 0;
+
+        // Re-send the audio
+        await ctx.api.sendVoice(telegramId, listeningTask.audioUrl, {
+          caption: '🎧 *Listening Exercise* (resuming)',
+          parse_mode: 'Markdown'
+        });
+
+        if (currentQ === 0) {
+          // User hasn't started - show vocabulary and ready button
+          const vocabList = listeningTask.words
+            .map(word => {
+              const [dutch, english] = word.split(':');
+              return `• *${dutch}* - _${english}_`;
+            })
+            .join('\n');
+
+          await ctx.reply(
+            `📚 *Vocabulary* (resuming)\n\n${vocabList}`,
+            { parse_mode: 'Markdown' }
+          );
+
+          const readyKeyboard = new InlineKeyboard()
+            .text('✅ Ready for the questions', 'listening_ready');
+
+          await ctx.reply(
+            `Listen to the audio and learn the vocabulary.\n\n` +
+            `Click "Ready" when you're prepared to answer questions.`,
+            { reply_markup: readyKeyboard }
+          );
+        } else {
+          // User is on a specific question (1 or 2)
+          const questionIndex = currentQ - 1;
+          const q = listeningTask.questions[questionIndex];
+
+          const keyboard = new InlineKeyboard()
+            .text('A', `listening_answer_${currentQ}_A`)
+            .text('B', `listening_answer_${currentQ}_B`)
+            .text('C', `listening_answer_${currentQ}_C`);
+
+          await ctx.reply(
+            `🎧 *Listening Exercise* (resuming)\n\n` +
+            `*Question ${currentQ}:* ${q.question}\n\n` +
+            `A) ${q.options[0]}\n` +
+            `B) ${q.options[1]}\n` +
+            `C) ${q.options[2]}`,
+            { parse_mode: 'Markdown', reply_markup: keyboard }
+          );
+        }
+
+        return;
       }
 
       if (state.currentTask === 3) {
@@ -606,17 +655,235 @@ export function createBot(token: string): Bot {
         });
         state.collectedWords.push(...newWords);
 
-        // Mark lesson as done (listening/speaking not implemented yet)
-        state.currentTask = 'done';
-        state.completedAt = new Date().toISOString();
+        // Move to listening task
+        state.currentTask = 2;
         // Clear reading progress
         state.readingProgress = undefined;
+        await setDailyState(telegramId, state);
+
+        await ctx.reply(
+          `✅ *Reading Complete!*\n\n` +
+          `Great work! Now let's practice listening.\n\n` +
+          `Generating listening exercise...`
+        );
+
+        try {
+          // Get the selected article
+          const selectedArticle = state.availableTopics![state.selectedTopicIndex!];
+
+          // Generate the listening task
+          const { task: listeningTask, audioBuffer } = await generateListeningTask(selectedArticle);
+
+          // Send the audio to Telegram
+          const audioMessage = await ctx.replyWithVoice(new InputFile(audioBuffer, 'listening.mp3'));
+
+          // Store the file_id for later reference
+          listeningTask.audioUrl = audioMessage.voice.file_id;
+
+          // Save to state and initialize listening progress
+          state.tasks[2] = listeningTask;
+          state.listeningProgress = {
+            currentQuestion: 0,  // 0 = not started, need to click "Ready"
+            userAnswers: [null, null]
+          };
+          await setDailyState(telegramId, state);
+
+          // Display vocabulary
+          const vocabList = listeningTask.words
+            .map(word => {
+              const [dutch, english] = word.split(':');
+              return `• *${dutch}* - _${english}_`;
+            })
+            .join('\n');
+
+          await ctx.reply(
+            `📚 *Vocabulary*\n\n` +
+            `${vocabList}`,
+            { parse_mode: 'Markdown' }
+          );
+
+          // Display Ready button
+          const readyKeyboard = new InlineKeyboard()
+            .text('✅ Ready for the questions', 'listening_ready');
+
+          await ctx.reply(
+            `🎧 Listen to the audio and learn the vocabulary.\n\n` +
+            `Click "Ready" when you're prepared to answer questions.`,
+            { reply_markup: readyKeyboard }
+          );
+
+        } catch (error) {
+          console.error('Error generating listening task:', error);
+          await ctx.reply(
+            `Sorry, I encountered an error generating the listening exercise. Please try again with /reset and /lesson.`
+          );
+        }
+      }
+
+      return;
+    }
+
+    // Handle listening_ready callback
+    if (data === 'listening_ready') {
+      const state = await getDailyState(telegramId);
+
+      if (!state || state.currentTask !== 2 || !state.tasks[2]) {
+        await ctx.answerCallbackQuery({
+          text: 'This action is no longer valid.'
+        });
+        return;
+      }
+
+      // Move to question 1
+      if (!state.listeningProgress) {
+        state.listeningProgress = {
+          currentQuestion: 1,
+          userAnswers: [null, null]
+        };
+      } else {
+        state.listeningProgress.currentQuestion = 1;
+      }
+      await setDailyState(telegramId, state);
+
+      // Answer callback query
+      await ctx.answerCallbackQuery();
+
+      // Remove the ready button
+      await ctx.editMessageReplyMarkup({ reply_markup: undefined });
+
+      // Display Question 1
+      const listeningTask = state.tasks[2];
+      const q = listeningTask.questions[0];
+
+      const keyboard = new InlineKeyboard()
+        .text('A', 'listening_answer_1_A')
+        .text('B', 'listening_answer_1_B')
+        .text('C', 'listening_answer_1_C');
+
+      await ctx.reply(
+        `*Question 1:* ${q.question}\n\n` +
+        `A) ${q.options[0]}\n` +
+        `B) ${q.options[1]}\n` +
+        `C) ${q.options[2]}`,
+        { parse_mode: 'Markdown', reply_markup: keyboard }
+      );
+
+      return;
+    }
+
+    // Handle listening answer callbacks
+    if (data.startsWith('listening_answer_')) {
+      const parts = data.replace('listening_answer_', '').split('_');
+      const questionNumber = parseInt(parts[0]) as 1 | 2;
+      const userAnswer = parts[1] as 'A' | 'B' | 'C';
+
+      const state = await getDailyState(telegramId);
+
+      if (!state || state.currentTask !== 2 || !state.tasks[2]) {
+        await ctx.answerCallbackQuery({
+          text: 'This action is no longer valid.'
+        });
+        return;
+      }
+
+      const listeningTask = state.tasks[2];
+      const questionIndex = questionNumber - 1;
+      const question = listeningTask.questions[questionIndex];
+
+      // Ensure progress exists
+      if (!state.listeningProgress) {
+        state.listeningProgress = {
+          currentQuestion: questionNumber,
+          userAnswers: [null, null]
+        };
+      }
+
+      // Save user's answer
+      state.listeningProgress.userAnswers[questionIndex] = userAnswer;
+
+      // Check if answer is correct
+      const isCorrect = userAnswer === question.correct;
+
+      // Answer callback query
+      await ctx.answerCallbackQuery();
+
+      // Remove the buttons
+      await ctx.editMessageReplyMarkup({ reply_markup: undefined });
+
+      // Show feedback
+      if (isCorrect) {
+        await ctx.reply(
+          `✅ *Correct!*\n\n` +
+          `The answer is ${userAnswer}.`,
+          { parse_mode: 'Markdown' }
+        );
+      } else {
+        await ctx.reply(
+          `❌ *Not quite.*\n\n` +
+          `The correct answer is ${question.correct}.`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      // Determine next step
+      if (questionNumber < 2) {
+        // Move to question 2
+        state.listeningProgress.currentQuestion = 2;
+        await setDailyState(telegramId, state);
+
+        const nextQ = listeningTask.questions[1];
+
+        const keyboard = new InlineKeyboard()
+          .text('A', 'listening_answer_2_A')
+          .text('B', 'listening_answer_2_B')
+          .text('C', 'listening_answer_2_C');
+
+        await ctx.reply(
+          `*Question 2:* ${nextQ.question}\n\n` +
+          `A) ${nextQ.options[0]}\n` +
+          `B) ${nextQ.options[1]}\n` +
+          `C) ${nextQ.options[2]}`,
+          { parse_mode: 'Markdown', reply_markup: keyboard }
+        );
+      } else {
+        // Finished all questions - show summary and transcript
+        const answers = state.listeningProgress.userAnswers;
+        const correctCount = listeningTask.questions.filter(
+          (q, i) => answers[i] === q.correct
+        ).length;
+
+        await ctx.reply(
+          `🎉 *Listening Exercise Complete!*\n\n` +
+          `You got ${correctCount} out of 2 questions correct.\n\n` +
+          `Great work! 🇳🇱`,
+          { parse_mode: 'Markdown' }
+        );
+
+        // Show transcript
+        await ctx.reply(
+          `📝 *Transcript:*\n\n` +
+          `${listeningTask.transcript}`,
+          { parse_mode: 'Markdown' }
+        );
+
+        // Add vocabulary to collected words
+        const newWords: VocabularyWord[] = listeningTask.words.map(word => {
+          const [dutch, english] = word.split(':');
+          return { dutch, english };
+        });
+        state.collectedWords.push(...newWords);
+
+        // Mark lesson as done (speaking not implemented yet)
+        state.currentTask = 'done';
+        state.completedAt = new Date().toISOString();
+        // Clear listening progress
+        state.listeningProgress = undefined;
         await setDailyState(telegramId, state);
 
         // Show completion message
         await ctx.reply(
           `🎉 *Lesson Complete!*\n\n` +
-          `Great job! You've completed today's reading exercise.\n\n` +
+          `Great job! You've completed reading and listening exercises.\n\n` +
           `Use /lesson to start a new lesson!`,
           { parse_mode: 'Markdown' }
         );

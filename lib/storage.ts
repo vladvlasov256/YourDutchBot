@@ -58,6 +58,10 @@ export interface DailyState {
     currentQuestion: 0 | 1 | 2 | 3;  // 0 = ready button shown, 1-3 = question number
     userAnswers: ('A' | 'B' | 'C' | null)[];  // Track answers for final summary
   };
+  listeningProgress?: {
+    currentQuestion: 0 | 1 | 2;  // 0 = audio played, ready button shown, 1-2 = question number
+    userAnswers: ('A' | 'B' | 'C' | null)[];  // Track answers for 2 questions
+  };
 }
 
 // Daily Topics Cache Types

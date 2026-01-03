@@ -292,9 +292,17 @@ KV_REST_API_TOKEN=xxx
   - [x] Fix distractors (B/C options) - make them realistic, not absurd
   - [x] Randomize correct answer position (not always "A")
   - [x] Update generateReadingQuestions prompt in config/prompts.ts
-- [ ] Generate Listening task
-- [ ] Implement generateListeningTask(topic) — create short audio content
-- [ ] Handle listening task answers
+- [x] **Listening Task Implementation**
+  - [x] Create lib/tasks/listening.ts - generate listening content
+  - [x] Add listeningProgress sub-state to DailyState
+  - [x] Generate 50-80 word Dutch audio with OpenAI TTS
+  - [x] Send audio as Telegram voice message
+  - [x] Create 2 comprehension questions
+  - [x] Show vocabulary before questions
+  - [x] Handle answers with feedback (one at a time)
+  - [x] Show transcript after completion
+  - [x] Resume logic for listening task
+  - [x] Move to next task or mark as done
 - [ ] Generate Speaking task
 - [ ] Implement generateSpeakingPrompt(topic) — create speaking prompt
 - [ ] Handle voice messages for speaking task
