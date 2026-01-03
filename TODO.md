@@ -288,6 +288,10 @@ KV_REST_API_TOKEN=xxx
   - [x] Provide immediate feedback (✅/❌) after each answer
   - [x] Show final summary (X/3 correct) after all questions
   - [x] Update resume logic to handle sub-states
+- [x] **Reading Task Question Quality Improvements**
+  - [x] Fix distractors (B/C options) - make them realistic, not absurd
+  - [x] Randomize correct answer position (not always "A")
+  - [x] Update generateReadingQuestions prompt in config/prompts.ts
 - [ ] Generate Listening task
 - [ ] Implement generateListeningTask(topic) — create short audio content
 - [ ] Handle listening task answers
@@ -413,6 +417,7 @@ See you tomorrow! Tot morgen! 👋
 
 ## Future Enhancements (Post-MVP)
 
+- [ ] **Language Level Selection (A0/A1/A2)** — See [TODO-levels.md](./TODO-levels.md) for detailed plan
 - [ ] Writing task (Task 4)
 - [ ] Progress statistics and history
 - [ ] Streak tracking
