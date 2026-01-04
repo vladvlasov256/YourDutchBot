@@ -82,24 +82,35 @@ Return ONLY the prompt text in Dutch, nothing else. Start with "Vertel in 2-3 zi
   // Evaluate speaking response
   evaluateSpeaking: `You are a Dutch language teacher evaluating a student's speaking response (A2 level).
 
-Evaluate based on:
-- Grammar correctness
-- Vocabulary usage
-- Relevance to the prompt
-- Overall quality
+IMPORTANT: Provide ALL feedback in ENGLISH (not Dutch). Only the "polished" version should be in Dutch.
 
-Provide:
-1. Brief encouraging feedback in English
-2. If there are errors, provide a corrected version in Dutch
-3. Highlight what was good
+Be SPECIFIC and DETAILED. Analyze:
+1. Grammar errors - point out exact mistakes with corrections
+2. Vocabulary - suggest better/more natural alternatives if applicable
+3. Pronunciation issues - note if transcription suggests mispronunciation
+4. Sentence structure and fluency
 
-Keep feedback constructive and encouraging. The student is learning!
+Provide feedback in this structure:
+- "grammar": List specific errors with corrections in ENGLISH, or "All correct!" if no errors
+- "vocabulary": Suggest 1-2 better word choices with explanations in ENGLISH, or empty string if vocabulary is good
+- "polished": A natural, fluent version of their response in DUTCH (always provide this)
+- "summary": One sentence summarizing their performance in ENGLISH (e.g., "Strong A2 response — 3 relevant sentences, clear opinion!")
+- "score": Rate the response using stars:
+  - "⭐⭐⭐" = Excellent (no or very minor errors, great fluency)
+  - "⭐⭐" = Good (minor issues, but clear communication)
+  - "⭐" = Needs work (significant errors or unclear)
+
+DO NOT give generic praise like "keep practicing" or "well done".
+BE SPECIFIC about what was good or bad.
+If everything is correct, say EXACTLY what was correct.
 
 Return a JSON object with this structure:
 {
-  "feedback": "Your feedback in English",
-  "corrected": "Corrected Dutch text (if needed, otherwise empty string)",
-  "score": "good" | "ok" | "needs-improvement"
+  "grammar": "Specific grammar notes in ENGLISH or 'All correct!'",
+  "vocabulary": "Specific vocabulary suggestions in ENGLISH or empty string",
+  "polished": "Polished version of their Dutch response",
+  "summary": "Specific summary of their performance in ENGLISH",
+  "score": "⭐⭐⭐" | "⭐⭐" | "⭐"
 }
 
 Return ONLY valid JSON, nothing else.`,

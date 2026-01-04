@@ -446,6 +446,134 @@ export function createBot(token: string): Bot {
     );
   });
 
+  bot.command('skip', async (ctx) => {
+    const telegramId = ctx.from?.id;
+
+    if (!telegramId) {
+      await ctx.reply('Error: Could not get your user ID.');
+      return;
+    }
+
+    const state = await getDailyState(telegramId);
+
+    if (!state) {
+      await ctx.reply('No active lesson. Use /lesson to start!');
+      return;
+    }
+
+    if (state.currentTask === 'selecting_topic') {
+      await ctx.reply('Please select a topic first before skipping.');
+      return;
+    }
+
+    if (state.currentTask === 'done') {
+      await ctx.reply('Lesson already complete! Use /lesson to start a new one.');
+      return;
+    }
+
+    // Skip current task and move to next
+    if (state.currentTask === 1) {
+      // Skip reading, generate and show listening task
+      await ctx.reply('⏭️ Skipping reading...\n\n🎧 Generating listening exercise...');
+
+      try {
+        const selectedArticle = state.availableTopics![state.selectedTopicIndex!];
+        const { task: listeningTask, audioBuffer } = await generateListeningTask(selectedArticle);
+
+        // Send the audio to Telegram
+        const audioMessage = await ctx.replyWithVoice(new InputFile(audioBuffer, 'listening.mp3'));
+        listeningTask.audioUrl = audioMessage.voice.file_id;
+
+        // Update state
+        state.currentTask = 2;
+        state.readingProgress = undefined;
+        state.tasks[2] = listeningTask;
+        state.listeningProgress = {
+          currentQuestion: 0,
+          userAnswers: [null, null]
+        };
+        await setDailyState(telegramId, state);
+
+        // Display vocabulary
+        const vocabList = listeningTask.words
+          .map(word => {
+            const [dutch, english] = word.split(':');
+            return `• *${dutch}* - _${english}_`;
+          })
+          .join('\n');
+
+        await ctx.reply(
+          `📚 *Vocabulary*\n\n${vocabList}`,
+          { parse_mode: 'Markdown' }
+        );
+
+        // Display Ready button
+        const readyKeyboard = new InlineKeyboard()
+          .text('✅ Ready for the questions', 'listening_ready');
+
+        await ctx.reply(
+          `🎧 Listen to the audio and learn the vocabulary.\n\n` +
+          `Click "Ready" when you're prepared to answer questions.`,
+          { reply_markup: readyKeyboard }
+        );
+      } catch (error) {
+        console.error('Error generating listening task:', error);
+        await ctx.reply('Error generating listening task. Please try /reset.');
+      }
+    } else if (state.currentTask === 2) {
+      // Skip listening, generate and show speaking task
+      await ctx.reply('⏭️ Skipping listening...\n\n🗣️ Generating speaking exercise...');
+
+      try {
+        const selectedArticle = state.availableTopics![state.selectedTopicIndex!];
+        const speakingTask = await generateSpeakingTask(selectedArticle);
+
+        // Update state
+        state.currentTask = 3;
+        state.listeningProgress = undefined;
+        state.tasks[3] = speakingTask;
+        state.speakingProgress = {
+          awaitingVoiceMessage: true
+        };
+        await setDailyState(telegramId, state);
+
+        // Display vocabulary
+        const vocabList = speakingTask.words
+          .map(word => {
+            const [dutch, english] = word.split(':');
+            return `• *${dutch}* - _${english}_`;
+          })
+          .join('\n');
+
+        await ctx.reply(
+          `📚 *Vocabulary*\n\n${vocabList}`,
+          { parse_mode: 'Markdown' }
+        );
+
+        // Display the prompt
+        await ctx.reply(
+          `🗣️ *Speaking Exercise*\n\n${speakingTask.prompt}\n\n` +
+          `📱 Send a voice message with your response in Dutch.`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (error) {
+        console.error('Error generating speaking task:', error);
+        await ctx.reply('Error generating speaking task. Please try /reset.');
+      }
+    } else if (state.currentTask === 3) {
+      // Skip speaking, mark as done
+      state.currentTask = 'done';
+      state.completedAt = new Date().toISOString();
+      state.speakingProgress = undefined;
+      await setDailyState(telegramId, state);
+      await ctx.reply(
+        '⏭️ Skipped speaking task.\n\n' +
+        '✅ Lesson marked as complete!\n\n' +
+        'Use /lesson tomorrow for a new lesson, or /reset to start over.'
+      );
+    }
+  });
+
   // Handle inline keyboard callbacks (topic selection)
   bot.on('callback_query:data', async (ctx) => {
     const telegramId = ctx.from?.id;
@@ -1076,23 +1204,31 @@ export function createBot(token: string): Bot {
       state.speakingProgress!.evaluation = evaluation;
       await setDailyState(telegramId, state);
 
-      // Show feedback based on score
-      const scoreEmoji = evaluation.score === 'good' ? '🌟' : evaluation.score === 'ok' ? '👍' : '💪';
+      // Show detailed feedback
+      let feedbackMessage = `👍 *Feedback*\n\n`;
 
+      // Grammar section
+      feedbackMessage += `✅ *Grammar:*\n${evaluation.grammar}\n\n`;
+
+      // Vocabulary section (only if suggestions exist)
+      if (evaluation.vocabulary && evaluation.vocabulary.trim().length > 0) {
+        feedbackMessage += `💡 *Suggestions:*\n${evaluation.vocabulary}\n\n`;
+      }
+
+      await ctx.reply(feedbackMessage, { parse_mode: 'Markdown' });
+
+      // Show polished version
       await ctx.reply(
-        `${scoreEmoji} *Feedback*\n\n` +
-        `${evaluation.feedback}`,
+        `📝 *Polished version:*\n\n` +
+        `_"${evaluation.polished}"_`,
         { parse_mode: 'Markdown' }
       );
 
-      // Show corrected version if available
-      if (evaluation.corrected && evaluation.corrected.trim().length > 0) {
-        await ctx.reply(
-          `✅ *Corrected version:*\n\n` +
-          `_"${evaluation.corrected}"_`,
-          { parse_mode: 'Markdown' }
-        );
-      }
+      // Show summary with score
+      await ctx.reply(
+        `🎯 ${evaluation.score} *${evaluation.summary}*`,
+        { parse_mode: 'Markdown' }
+      );
 
       // Add vocabulary to collected words
       const newWords: VocabularyWord[] = speakingTask.words.map(word => {

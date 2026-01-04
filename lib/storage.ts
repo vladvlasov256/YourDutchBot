@@ -66,9 +66,11 @@ export interface DailyState {
     awaitingVoiceMessage: boolean;  // true = waiting for user to send voice message
     transcript?: string;  // User's transcribed speech
     evaluation?: {
-      feedback: string;
-      corrected: string;
-      score: 'good' | 'ok' | 'needs-improvement';
+      grammar: string;
+      vocabulary: string;
+      polished: string;
+      summary: string;
+      score: '⭐⭐⭐' | '⭐⭐' | '⭐';
     };
   };
 }

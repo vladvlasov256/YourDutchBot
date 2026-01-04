@@ -35,9 +35,11 @@ export async function generateSpeakingTask(article: NewsArticle): Promise<Speaki
 }
 
 interface SpeakingEvaluation {
-  feedback: string;
-  corrected: string;
-  score: 'good' | 'ok' | 'needs-improvement';
+  grammar: string;
+  vocabulary: string;
+  polished: string;
+  summary: string;
+  score: '⭐⭐⭐' | '⭐⭐' | '⭐';
 }
 
 export async function evaluateSpeaking(
