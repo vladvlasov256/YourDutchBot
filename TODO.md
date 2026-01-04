@@ -435,6 +435,7 @@ See you tomorrow! Tot morgen! 👋
 
 - [ ] **Language Level Selection (A0/A1/A2)** — See [TODO-levels.md](./TODO-levels.md) for detailed plan
 - [ ] **Contextual Q&A Chat** — See [TODO-chat-context.md](./TODO-chat-context.md) for detailed plan
+- [ ] **Visual Diff for Polished Version** — See [TODO-diff-feedback.md](./TODO-diff-feedback.md) for detailed plan
 - [ ] Writing task (Task 4)
 - [ ] Progress statistics and history
 - [ ] Streak tracking
