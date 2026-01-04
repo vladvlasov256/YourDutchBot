@@ -62,6 +62,15 @@ export interface DailyState {
     currentQuestion: 0 | 1 | 2;  // 0 = audio played, ready button shown, 1-2 = question number
     userAnswers: ('A' | 'B' | 'C' | null)[];  // Track answers for 2 questions
   };
+  speakingProgress?: {
+    awaitingVoiceMessage: boolean;  // true = waiting for user to send voice message
+    transcript?: string;  // User's transcribed speech
+    evaluation?: {
+      feedback: string;
+      corrected: string;
+      score: 'good' | 'ok' | 'needs-improvement';
+    };
+  };
 }
 
 // Daily Topics Cache Types

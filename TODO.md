@@ -303,10 +303,18 @@ KV_REST_API_TOKEN=xxx
   - [x] Show transcript after completion
   - [x] Resume logic for listening task
   - [x] Move to next task or mark as done
-- [ ] Generate Speaking task
-- [ ] Implement generateSpeakingPrompt(topic) — create speaking prompt
-- [ ] Handle voice messages for speaking task
-- [ ] Implement evaluateSpeaking(transcript) — assess user's speech
+- [x] **Speaking Task Implementation**
+  - [x] Create lib/tasks/speaking.ts - generate speaking prompt
+  - [x] Add speakingProgress state to DailyState
+  - [x] Generate speaking prompt based on article
+  - [x] Show vocabulary before prompt
+  - [x] Handle voice message from user
+  - [x] Download and transcribe audio with Whisper
+  - [x] Evaluate speech with GPT-4o (grammar, vocabulary, relevance)
+  - [x] Show transcript and feedback
+  - [x] Show corrected version if needed
+  - [x] Resume logic for speaking task
+  - [x] Mark lesson as complete after all 3 tasks
 - [ ] Send vocabulary list at completion
 
 ### Phase 5: Task Processing Logic

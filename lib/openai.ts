@@ -49,8 +49,9 @@ export async function textToSpeech(text: string): Promise<Buffer> {
 }
 
 // Speech-to-Text helper (Whisper)
-export async function transcribeAudio(audioBuffer: Buffer, filename: string = 'audio.oga'): Promise<string> {
+export async function transcribeAudio(audioBuffer: Buffer, filename: string = 'audio.ogg'): Promise<string> {
   // Create a File-like object from the buffer
+  // Note: Telegram sends .oga files (Ogg Vorbis), but we use .ogg extension for Whisper compatibility
   const file = new File([new Uint8Array(audioBuffer)], filename, { type: 'audio/ogg' });
 
   const response = await getOpenAI().audio.transcriptions.create({
