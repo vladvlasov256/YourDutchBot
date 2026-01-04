@@ -434,6 +434,7 @@ See you tomorrow! Tot morgen! 👋
 ## Future Enhancements (Post-MVP)
 
 - [ ] **Language Level Selection (A0/A1/A2)** — See [TODO-levels.md](./TODO-levels.md) for detailed plan
+- [ ] **Contextual Q&A Chat** — See [TODO-chat-context.md](./TODO-chat-context.md) for detailed plan
 - [ ] Writing task (Task 4)
 - [ ] Progress statistics and history
 - [ ] Streak tracking
