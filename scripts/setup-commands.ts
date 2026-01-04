@@ -17,6 +17,7 @@ async function setCommands() {
     { command: 'start', description: 'Register and get started' },
     { command: 'lesson', description: 'Start a new lesson with topic selection' },
     { command: 'status', description: 'Check today\'s progress' },
+    { command: 'skip', description: 'Skip current exercise and move to next' },
     { command: 'reset', description: 'Reset current lesson and start over' },
   ];
 

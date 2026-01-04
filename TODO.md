@@ -105,8 +105,16 @@ Bot sends topic selection to all active users
 |-----------|------------------------------------------|
 | `/start`  | Register user, show welcome message      |
 | `/lesson` | Start a new lesson (choose topic from news) |
-| `/reset`  | Reset current lesson, start over         |
 | `/status` | Show today's progress (task 1/2/3/done)  |
+| `/skip`   | Skip current exercise and move to next   |
+| `/reset`  | Reset current lesson, start over         |
+
+## Setup Commands
+
+| Command              | Description                              |
+|----------------------|------------------------------------------|
+| `pnpm setup:webhook` | Set Telegram webhook for Vercel deployment |
+| `pnpm setup:commands`| Register bot commands with Telegram      |
 
 ## Hardcoded Topics
 

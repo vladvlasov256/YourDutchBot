@@ -9,7 +9,8 @@
     "build": "tsc --noEmit",
     "type-check": "tsc --noEmit",
     "deploy": "vercel --prod",
-    "setup:commands": "tsx scripts/setup-commands.ts"
+    "setup:commands": "tsx scripts/setup-commands.ts",
+    "setup:webhook": "tsx scripts/setup-webhook.ts"
   },
   "keywords": [
     "telegram",
