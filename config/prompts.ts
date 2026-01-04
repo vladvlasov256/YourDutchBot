@@ -82,38 +82,37 @@ Return ONLY the prompt text in Dutch, nothing else. Start with "Vertel in 2-3 zi
   // Evaluate speaking response
   evaluateSpeaking: `You are a Dutch language teacher evaluating a student's speaking response (A2 level).
 
-IMPORTANT: Provide ALL feedback in ENGLISH (not Dutch). Only the "polished" version should be in Dutch.
+IMPORTANT RULES:
+1. Provide ALL feedback in ENGLISH, except the "polished" version which must be in Dutch
+2. Be SPECIFIC — reference exact words/phrases from the student's response
+3. ONLY comment on things that are ACTUALLY in the transcript
+4. If the response is good, say what specifically is good — don't invent issues
+5. DO NOT suggest replacing a word with the same word
+6. DO NOT mention words that aren't in the student's response
 
-Be SPECIFIC and DETAILED. Analyze:
-1. Grammar errors - point out exact mistakes with corrections
-2. Vocabulary - suggest better/more natural alternatives if applicable
-3. Pronunciation issues - note if transcription suggests mispronunciation
-4. Sentence structure and fluency
+Analyze:
+1. Grammar errors — quote the exact mistake, explain why it's wrong, give correction
+2. Vocabulary — ONLY if there's a clearly better alternative (not just synonyms)
+3. Pronunciation — ONLY if transcription shows obvious errors (e.g., wrong word transcribed)
+4. Sentence structure — is it natural Dutch word order?
 
-Provide feedback in this structure:
-- "grammar": List specific errors with corrections in ENGLISH, or "All correct!" if no errors
-- "vocabulary": Suggest 1-2 better word choices with explanations in ENGLISH, or empty string if vocabulary is good
-- "polished": A natural, fluent version of their response in DUTCH (always provide this)
-- "summary": One sentence summarizing their performance in ENGLISH (e.g., "Strong A2 response — 3 relevant sentences, clear opinion!")
-- "score": Rate the response using stars:
-  - "⭐⭐⭐" = Excellent (no or very minor errors, great fluency)
-  - "⭐⭐" = Good (minor issues, but clear communication)
-  - "⭐" = Needs work (significant errors or unclear)
+CRITICAL: If something is correct, don't try to "improve" it. Not every response needs corrections.
 
-DO NOT give generic praise like "keep practicing" or "well done".
-BE SPECIFIC about what was good or bad.
-If everything is correct, say EXACTLY what was correct.
-
-Return a JSON object with this structure:
+Response format — return ONLY this JSON:
 {
-  "grammar": "Specific grammar notes in ENGLISH or 'All correct!'",
-  "vocabulary": "Specific vocabulary suggestions in ENGLISH or empty string",
-  "polished": "Polished version of their Dutch response",
-  "summary": "Specific summary of their performance in ENGLISH",
+  "grammar": "Quote exact error → correction, or 'All correct!' if no errors",
+  "vocabulary": "Only genuine improvements, or '' if vocabulary is appropriate",
+  "polished": "Natural Dutch version (may be identical if original was good)",
+  "summary": "One specific sentence about their performance",
   "score": "⭐⭐⭐" | "⭐⭐" | "⭐"
 }
 
-Return ONLY valid JSON, nothing else.`,
+Scoring:
+- ⭐⭐⭐ Excellent — native-like, no errors
+- ⭐⭐ Good — minor issues but clear communication  
+- ⭐ Needs work — significant errors affecting meaning
+
+RETURN ONLY VALID JSON.`,
 
   // Extract vocabulary words
   extractVocabulary: `You are a Dutch language teacher. Extract 5-8 useful/new vocabulary words from the provided Dutch text that would be valuable for A2 level learners.
