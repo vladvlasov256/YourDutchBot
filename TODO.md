@@ -261,6 +261,9 @@ OPENAI_API_KEY=xxx
 GNEWS_API_KEY=xxx
 KV_REST_API_URL=xxx
 KV_REST_API_TOKEN=xxx
+
+# Phase 10: Multi-Language Support (optional)
+LEARNING_LANGUAGE=dutch  # dutch | english | serbian
 ```
 
 ## Implementation Checklist
@@ -414,12 +417,58 @@ See [PRD-monetization.md](./PRD-monetization.md) for full specification.
 - [ ] Add alerts for negative credit balance (bug detection)
 - [ ] Create dashboard for key metrics (users, revenue, costs)
 
+### Phase 10: Multi-Language Support
+See [PRD-multi-language.md](./PRD-multi-language.md) for full specification.
+
+**Goal:** Transform the bot into a multi-language learning platform (Dutch, English, Serbian) with localized UI.
+
+#### 10.1: Language Configuration
+- [ ] Create `config/languages.ts` with language configs (voices, news sources, etc.)
+- [ ] Add `LEARNING_LANGUAGE` environment variable (dutch | english | serbian)
+- [ ] Create `getLanguageConfig()` helper function
+- [ ] Update TTS to use language-specific voice
+- [ ] Update news fetching to use language-specific settings
+
+#### 10.2: Prompt Organization
+- [ ] Create `/prompts` folder structure per language
+- [ ] Move existing Dutch prompts to `/prompts/dutch/`
+- [ ] Create English prompts in `/prompts/english/`
+- [ ] Create Serbian prompts in `/prompts/serbian/`
+- [ ] Create `/prompts/index.ts` to load prompts by `LEARNING_LANGUAGE`
+- [ ] Update all OpenAI calls to use dynamic prompts
+
+#### 10.3: UI Localization
+- [ ] Create `/locales` folder structure
+- [ ] Create `en.json` with all UI strings (default)
+- [ ] Create `nl.json` with Dutch translations
+- [ ] Create `sr.json` with Serbian translations
+- [ ] Create `ru.json` with Russian translations
+- [ ] Create `lib/i18n.ts` with `t()` translation function
+- [ ] Detect user locale from `ctx.from.language_code`
+
+#### 10.4: Bot Message Updates
+- [ ] Update `/start` command to use localized strings
+- [ ] Update `/lesson` command messages
+- [ ] Update reading task messages
+- [ ] Update listening task messages
+- [ ] Update speaking task messages
+- [ ] Update completion messages
+- [ ] Update error messages
+- [ ] Update monetization messages (if Phase 9 enabled)
+
+#### 10.5: Testing & Deployment
+- [ ] Test Dutch bot with all UI locales
+- [ ] Test English bot with all UI locales
+- [ ] Test Serbian bot with Serbian/Russian UI
+- [ ] Create separate Vercel projects per language
+- [ ] Update deployment documentation
+
 ## UI/UX Guidelines
 
-- **Bot language:** English (for interface and instructions)
-- **Learning content:** Dutch
-- **Questions:** Dutch with Dutch answer options
-- **Feedback & explanations:** English
+- **Bot language:** English by default (localized in Phase 10 based on user's Telegram locale)
+- **Learning content:** Dutch (configurable via `LEARNING_LANGUAGE` in Phase 10)
+- **Questions:** In target language with target language answer options
+- **Feedback & explanations:** In user's locale (English if not supported)
 - **Tone:** Friendly, encouraging, not robotic
 
 ## Example Messages
@@ -503,6 +552,7 @@ See you tomorrow! Tot morgen! 👋
 ## Future Enhancements (Post-MVP)
 
 - [ ] **Monetization with Telegram Stars** — See [PRD-monetization.md](./PRD-monetization.md) for detailed plan (Phase 9)
+- [ ] **Multi-Language Support** — See [PRD-multi-language.md](./PRD-multi-language.md) for detailed plan (Phase 10)
 - [ ] **Language Level Selection (A0/A1/A2)** — See [TODO-levels.md](./TODO-levels.md) for detailed plan
 - [ ] **Contextual Q&A Chat** — See [TODO-chat-context.md](./TODO-chat-context.md) for detailed plan
 - [ ] **Visual Diff for Polished Version** — See [TODO-diff-feedback.md](./TODO-diff-feedback.md) for detailed plan
