@@ -323,7 +323,7 @@ KV_REST_API_TOKEN=xxx
   - [x] Show corrected version if needed
   - [x] Resume logic for speaking task
   - [x] Mark lesson as complete after all 3 tasks
-- [ ] Send vocabulary list at completion
+- [x] Send consolidated vocabulary summary at completion (combine all words from tasks 1, 2, 3 into final message)
 
 ### Phase 5: Task Processing Logic
 - [ ] Validate and parse task answers (A B C format or 1 2 3)

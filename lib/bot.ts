@@ -566,11 +566,25 @@ export function createBot(token: string): Bot {
       state.completedAt = new Date().toISOString();
       state.speakingProgress = undefined;
       await setDailyState(telegramId, state);
-      await ctx.reply(
-        '⏭️ Skipped speaking task.\n\n' +
-        '✅ Lesson marked as complete!\n\n' +
-        'Use /lesson tomorrow for a new lesson, or /reset to start over.'
-      );
+
+      // Show completion message with vocabulary summary
+      let completionMessage =
+        `⏭️ Skipped speaking task.\n\n` +
+        `✅ Lesson marked as complete!\n\n`;
+
+      // Add consolidated vocabulary list (max 10 words)
+      if (state.collectedWords && state.collectedWords.length > 0) {
+        const wordsToShow = state.collectedWords.slice(0, 10);
+        completionMessage += `📚 *Today's words:*\n\n`;
+        wordsToShow.forEach(word => {
+          completionMessage += `• *${word.dutch}* — ${word.english}\n`;
+        });
+        completionMessage += `\n`;
+      }
+
+      completionMessage += `Use /lesson tomorrow for a new lesson, or /reset to start over.`;
+
+      await ctx.reply(completionMessage, { parse_mode: 'Markdown' });
     }
   });
 
@@ -1243,16 +1257,27 @@ export function createBot(token: string): Bot {
       state.speakingProgress = undefined;
       await setDailyState(telegramId, state);
 
-      // Show completion message
-      await ctx.reply(
-        `🎉 *Lesson Complete!*\n\n` +
-        `Great job! You've completed all 3 exercises:\n` +
+      // Show completion message with vocabulary summary
+      let completionMessage =
+        `🎉 *Goed gedaan!* All exercises completed.\n\n` +
         `✅ Reading\n` +
         `✅ Listening\n` +
-        `✅ Speaking\n\n` +
-        `Use /lesson to start a new lesson!`,
-        { parse_mode: 'Markdown' }
-      );
+        `✅ Speaking\n\n`;
+
+      // Add consolidated vocabulary list (max 10 words)
+      if (state.collectedWords && state.collectedWords.length > 0) {
+        const wordsToShow = state.collectedWords.slice(0, 10);
+        completionMessage += `📚 *Today's words:*\n\n`;
+        wordsToShow.forEach(word => {
+          completionMessage += `• *${word.dutch}* — ${word.english}\n`;
+        });
+        completionMessage += `\n`;
+      }
+
+      completionMessage += `See you tomorrow! Tot morgen! 👋\n\n`;
+      completionMessage += `Use /lesson to start a new lesson.`;
+
+      await ctx.reply(completionMessage, { parse_mode: 'Markdown' });
 
     } catch (error) {
       console.error('Error processing voice message:', error);
