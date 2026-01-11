@@ -109,12 +109,23 @@ Bot sends topic selection to all active users
 | `/skip`   | Skip current exercise and move to next   |
 | `/reset`  | Reset current lesson, start over         |
 
+### Monetization Commands (Phase 9 - Optional)
+
+| Command          | Description                              |
+|------------------|------------------------------------------|
+| `/balance`       | Show current credit balance              |
+| `/buy`           | Purchase credits with Telegram Stars     |
+| `/transactions`  | Show recent transaction history          |
+| `/paysupport`    | Payment support (required by Telegram)   |
+| `/terms`         | Terms and conditions                     |
+
 ## Setup Commands
 
-| Command              | Description                              |
-|----------------------|------------------------------------------|
-| `pnpm setup:webhook` | Set Telegram webhook for Vercel deployment |
-| `pnpm setup:commands`| Register bot commands with Telegram      |
+| Command               | Description                              |
+|-----------------------|------------------------------------------|
+| `pnpm setup:webhook`  | Set Telegram webhook for Vercel deployment |
+| `pnpm remove:webhook` | Remove Telegram webhook (enables polling mode) |
+| `pnpm setup:commands` | Register bot commands with Telegram      |
 
 ## Hardcoded Topics
 
@@ -340,6 +351,7 @@ KV_REST_API_TOKEN=xxx
 - [ ] Handle errors gracefully (don't fail entire batch)
 
 ### Phase 7: Polish
+- [ ] Refactor lib/bot.ts - split into smaller modules (handlers, message builders, etc.)
 - [ ] Error handling and user-friendly error messages
 - [ ] Input validation
 - [ ] Rate limiting considerations
@@ -355,6 +367,52 @@ KV_REST_API_TOKEN=xxx
 - [ ] Compare with OpenAI TTS
 - [ ] Switch if quality is significantly better
 - [ ] Update config to use ElevenLabs by default
+
+### Phase 9: Monetization with Telegram Stars (OPTIONAL)
+See [PRD-monetization.md](./PRD-monetization.md) for full specification.
+
+#### 9.1: Credit System Foundation
+- [ ] Add billing data model to storage (user credits, transactions)
+- [ ] Implement `addCredits(userId, amount)` function
+- [ ] Implement `deductCredits(userId, amount)` function
+- [ ] Grant 50 free credits on `/start` for new users
+- [ ] Add `/balance` command to show current credits
+
+#### 9.2: Usage Tracking
+- [ ] Create `lib/openai-tracked.ts` wrapper for OpenAI API calls
+- [ ] Implement credit calculation for GPT-4o-mini (input/output tokens)
+- [ ] Implement credit calculation for Whisper (audio duration)
+- [ ] Implement credit calculation for TTS (character count)
+- [ ] Add 25% margin to all credit calculations
+- [ ] Log all API usage to transactions table
+- [ ] Replace direct OpenAI calls with tracked wrappers
+
+#### 9.3: Balance Management
+- [ ] Show low balance warning (<10 credits) during lessons
+- [ ] Block lesson start if insufficient credits (~20 needed)
+- [ ] Display credit cost estimate before starting lesson
+- [ ] Add `/transactions` command to show usage history
+
+#### 9.4: Telegram Stars Payments
+- [ ] Implement `/buy` command with package selection
+- [ ] Create inline keyboard with credit packages (100, 250, 600, 1750)
+- [ ] Implement `sendInvoice` for Telegram Stars (currency: XTR)
+- [ ] Handle `successful_payment` callback
+- [ ] Store `telegram_payment_charge_id` for refunds
+- [ ] Update user credits after successful payment
+- [ ] Send confirmation message with new balance
+
+#### 9.5: Payment Support & Compliance
+- [ ] Implement `/paysupport` command (required by Telegram)
+- [ ] Implement `/terms` command with terms and conditions
+- [ ] Add refund capability using `refundStarPayment` API
+- [ ] Add admin commands for issuing refunds
+
+#### 9.6: Monitoring & Analytics
+- [ ] Track daily credit spending and purchases
+- [ ] Monitor API costs vs revenue
+- [ ] Add alerts for negative credit balance (bug detection)
+- [ ] Create dashboard for key metrics (users, revenue, costs)
 
 ## UI/UX Guidelines
 
@@ -438,9 +496,13 @@ See you tomorrow! Tot morgen! 👋
 5. **Telegram voice messages:** Come as .oga files, need to download and send to Whisper
 6. **Topic selection UX:** Users might want to see more than 5 topics or refresh topics - consider for future
 7. **Multiple lessons per day:** May want to limit to prevent abuse or OpenAI cost overrun
+8. **API costs:** ~$0.012 per lesson (see PRD-monetization.md for breakdown)
+   - Consider implementing monetization (Phase 9) if scaling beyond personal use
+   - Free tier may not be sustainable with many users
 
 ## Future Enhancements (Post-MVP)
 
+- [ ] **Monetization with Telegram Stars** — See [PRD-monetization.md](./PRD-monetization.md) for detailed plan (Phase 9)
 - [ ] **Language Level Selection (A0/A1/A2)** — See [TODO-levels.md](./TODO-levels.md) for detailed plan
 - [ ] **Contextual Q&A Chat** — See [TODO-chat-context.md](./TODO-chat-context.md) for detailed plan
 - [ ] **Visual Diff for Polished Version** — See [TODO-diff-feedback.md](./TODO-diff-feedback.md) for detailed plan
