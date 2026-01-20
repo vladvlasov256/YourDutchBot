@@ -5,9 +5,13 @@ This guide explains how to enable the daily push feature, which sends an engagin
 ## What It Does
 
 Every day at 08:00 CET (07:00 UTC in winter, 06:00 UTC in summer), the bot will:
-- Send a random motivational message to all registered users
-- Encourage them to use `/lesson` to start their daily practice
-- Rotate through 5 different engaging messages for variety
+- Check each user's lesson state for today
+- Send a personalized message based on their status:
+  - **No lesson yet**: Engaging morning message to start a new lesson
+  - **Lesson in progress**: Reminder to continue their unfinished lesson
+  - **Lesson completed**: Congratulations + optional encouragement for another round
+- Rotate through 3 different messages for each category for variety
+- Respect Telegram's rate limits with automatic delays
 
 ## Prerequisites
 
@@ -88,7 +92,12 @@ Expected response:
   "stats": {
     "total": 5,
     "sent": 5,
-    "failed": 0
+    "failed": 0,
+    "breakdown": {
+      "newLessons": 3,
+      "inProgress": 1,
+      "completed": 1
+    }
   }
 }
 ```
@@ -129,16 +138,29 @@ To change the time, edit `vercel.json`:
 
 ## Customizing Messages
 
-Edit the messages in `/api/daily-push.ts`:
+Edit the messages in `/api/daily-push.ts`. There are three message categories:
 
 ```typescript
-const MORNING_MESSAGES = [
+// For users with no lesson today
+const NEW_LESSON_MESSAGES = [
   '☀️ *Goedemorgen!*\n\nReady for your daily Dutch practice?...',
+  // Add more messages here
+];
+
+// For users with lesson in progress
+const IN_PROGRESS_MESSAGES = [
+  '👋 *Good morning!*\n\nYou have an unfinished lesson...',
+  // Add more messages here
+];
+
+// For users who completed today's lesson
+const COMPLETED_MESSAGES = [
+  '🎉 *Well done!*\n\nYou already completed today\'s lesson!...',
   // Add more messages here
 ];
 ```
 
-The bot randomly rotates through these messages based on the day of the month.
+The bot rotates through these messages based on the day of the month (day % 3).
 
 ## Rate Limiting
 
