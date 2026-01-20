@@ -76,7 +76,59 @@ export function createBot(token: string): Bot {
     if (state && state.todayDate === today && state.currentTask !== 'done') {
       // Lesson in progress
       if (state.currentTask === 'selecting_topic') {
-        // Re-show the topic list
+        // Check if a topic has been selected but task generation is in progress or failed
+        if (state.selectedTopicIndex !== null && state.availableTopics) {
+          await ctx.reply(
+            `⏳ Your exercise is being generated, please wait a moment...\n\n` +
+            `If this persists, use /reset to start over.`
+          );
+
+          // Try to recover by generating the task
+          try {
+            const selectedArticle = state.availableTopics[state.selectedTopicIndex];
+            const readingTask = await generateReadingTask(selectedArticle);
+
+            state.tasks[1] = readingTask;
+            state.readingProgress = {
+              currentQuestion: 0,
+              userAnswers: [null, null, null]
+            };
+            state.currentTask = 1;
+            await setDailyState(telegramId, state);
+
+            // Display the task
+            const vocabList = readingTask.words
+              .map(word => {
+                const [dutch, english] = word.split(':');
+                return `• *${dutch}* - _${english}_`;
+              })
+              .join('\n');
+
+            await ctx.reply(
+              `📚 *Vocabulary*\n\n${vocabList}`,
+              { parse_mode: 'Markdown' }
+            );
+
+            await ctx.reply(
+              `📖 *Reading Exercise*\n\n${readingTask.content}`,
+              { parse_mode: 'Markdown' }
+            );
+
+            const readyKeyboard = new InlineKeyboard()
+              .text('✅ Ready for the questions', 'reading_ready');
+
+            await ctx.reply(
+              `Take your time to read the text and learn the vocabulary.`,
+              { reply_markup: readyKeyboard }
+            );
+          } catch (error) {
+            console.error('Error recovering reading task:', error);
+            await ctx.reply('Error generating task. Please try /reset.');
+          }
+          return;
+        }
+
+        // Re-show the topic list if no topic selected yet
         if (state.availableTopics && state.availableTopics.length > 0) {
           const topicList = state.availableTopics
             .map((article, index) => `${index + 1}. ${article.title}`)
@@ -613,9 +665,8 @@ export function createBot(token: string): Bot {
         return;
       }
 
-      // Store the selected topic
+      // Store the selected topic (but don't change currentTask yet)
       state.selectedTopicIndex = topicIndex;
-      state.currentTask = 1; // Move to reading task
       await setDailyState(telegramId, state);
 
       // Answer the callback query (removes the loading state from the button)
@@ -642,6 +693,7 @@ export function createBot(token: string): Bot {
           currentQuestion: 0,  // 0 = not started, need to click "Ready"
           userAnswers: [null, null, null]
         };
+        state.currentTask = 1; // Only set currentTask after successful generation
         await setDailyState(telegramId, state);
 
         // Display vocabulary
@@ -826,12 +878,6 @@ export function createBot(token: string): Bot {
         });
         state.collectedWords.push(...newWords);
 
-        // Move to listening task
-        state.currentTask = 2;
-        // Clear reading progress
-        state.readingProgress = undefined;
-        await setDailyState(telegramId, state);
-
         await ctx.reply(
           `✅ *Reading Complete!*\n\n` +
           `Great work! Now let's practice listening.\n\n` +
@@ -858,6 +904,8 @@ export function createBot(token: string): Bot {
             currentQuestion: 0,  // 0 = not started, need to click "Ready"
             userAnswers: [null, null]
           };
+          state.currentTask = 2; // Only set currentTask after successful generation
+          state.readingProgress = undefined; // Clear reading progress after transition
           await setDailyState(telegramId, state);
 
           // Display vocabulary
@@ -1045,12 +1093,6 @@ export function createBot(token: string): Bot {
         });
         state.collectedWords.push(...newWords);
 
-        // Move to speaking task
-        state.currentTask = 3;
-        // Clear listening progress
-        state.listeningProgress = undefined;
-        await setDailyState(telegramId, state);
-
         await ctx.reply(
           `✅ *Listening Complete!*\n\n` +
           `Great work! Now let's practice speaking.\n\n` +
@@ -1070,6 +1112,8 @@ export function createBot(token: string): Bot {
           state.speakingProgress = {
             awaitingVoiceMessage: true
           };
+          state.currentTask = 3; // Only set currentTask after successful generation
+          state.listeningProgress = undefined; // Clear listening progress after transition
           await setDailyState(telegramId, state);
 
           // Display vocabulary
