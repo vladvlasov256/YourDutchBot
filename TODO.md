@@ -295,7 +295,7 @@ LEARNING_LANGUAGE=dutch  # dutch | english | serbian
 - [x] Handle voice messages — placeholder for speaking task
 - [x] Create dev-bot.ts — local development with polling
 
-### Phase 4: Lesson Flow (IN PROGRESS)
+### Phase 4: Lesson Flow ✅
 - [x] Implement /lesson command
 - [x] Fetch and cache daily topics from GNews
 - [x] Show topic selection (5 news headlines with inline keyboard)
@@ -339,19 +339,22 @@ LEARNING_LANGUAGE=dutch  # dutch | english | serbian
   - [x] Mark lesson as complete after all 3 tasks
 - [x] Send consolidated vocabulary summary at completion (combine all words from tasks 1, 2, 3 into final message)
 
-### Phase 5: Task Processing Logic
-- [ ] Validate and parse task answers (A B C format or 1 2 3)
-- [ ] Evaluate answers and provide feedback
-- [ ] Track correct/incorrect answers
-- [ ] Progress through tasks: Reading → Listening → Speaking
-- [ ] Extract and aggregate vocabulary words
-- [ ] Mark lesson as complete
+### Phase 5: Task Processing Logic ✅
+- [x] Validate and parse task answers (A B C format or 1 2 3) — Obsolete: Using inline keyboard buttons
+- [x] Evaluate answers and provide feedback
+- [x] Track correct/incorrect answers
+- [x] Progress through tasks: Reading → Listening → Speaking
+- [x] Extract and aggregate vocabulary words
+- [x] Mark lesson as complete
 
-### Phase 6: Daily Push (OPTIONAL - Later)
-- [ ] GET /api/daily-push.ts — cron handler
-- [ ] Fetch all active users
-- [ ] For each user: send topic selection
-- [ ] Handle errors gracefully (don't fail entire batch)
+### Phase 6: Daily Push ✅
+- [x] GET /api/daily-push.ts — cron handler
+- [x] Fetch all active users
+- [x] For each user: send engaging morning reminder (not topic selection)
+- [x] Handle errors gracefully (don't fail entire batch)
+- [x] Add rate limiting for Telegram API (35ms delay between messages)
+- [x] Add CRON_SECRET for endpoint security
+- [x] Create setup documentation (SETUP-DAILY-PUSH.md)
 
 ### Phase 7: Polish
 - [ ] Refactor lib/bot.ts - split into smaller modules (handlers, message builders, etc.)
